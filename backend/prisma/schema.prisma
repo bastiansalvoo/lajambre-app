@@ -1,0 +1,101 @@
+// Configuración básica del generador y la fuente de datos
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  
+}
+
+// --- ENUMS: Valores fijos para evitar errores de escritura ---
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDIENTE
+  PAGADO
+  EN_CAMINO
+  ENTREGADO
+  CANCELADO
+}
+
+// --- MODELOS DE DATOS ---
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  phone     String
+  address   String?
+  role      Role     @default(USER)
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  name     String
+  products Product[]
+}
+
+model Product {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String
+  price       Int
+  image       String?
+  isAvailable Boolean     @default(true)
+  category    Category    @relation(fields: [categoryId], references: [id])
+  categoryId  Int
+  orderItems  OrderItem[]
+}
+
+model Extra {
+  id              Int              @id @default(autoincrement())
+  name            String
+  price           Int
+  orderItemExtras OrderItemExtra[]
+}
+
+model Order {
+  id           Int         @id @default(autoincrement())
+  user         User        @relation(fields: [userId], references: [id])
+  userId       Int
+  status       OrderStatus @default(PENDIENTE)
+  total        Int
+  deliveryFee  Int         @default(1000)
+  
+  // Campos críticos para Webpay Plus
+  buyOrder     String?     @unique
+  sessionId    String?
+  
+  items        OrderItem[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   Int
+  product   Product  @relation(fields: [productId], references: [id])
+  productId Int
+  quantity  Int
+  priceAtPurchase Int // Guardamos el precio del momento de la venta
+  
+  extras    OrderItemExtra[]
+}
+
+model OrderItemExtra {
+  id              Int       @id @default(autoincrement())
+  orderItem       OrderItem @relation(fields: [orderItemId], references: [id])
+  orderItemId     Int
+  extra           Extra     @relation(fields: [extraId], references: [id])
+  extraId         Int
+  priceAtPurchase Int
+}

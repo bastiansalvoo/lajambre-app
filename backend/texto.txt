@@ -1,0 +1,15 @@
+porque me da este error en consola al ejecutar pnpm run start:dev:
+
+[Nest] 24408  - 26/03/2026, 17:29:47     LOG [NestFactory] Starting Nest application...
+[Nest] 24408  - 26/03/2026, 17:29:47   ERROR [ExceptionHandler] PrismaClientConstructorValidationError: Unknown property datasources provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+    at validatePrismaClientOptions (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@prisma\client\src\runtime\utils\validatePrismaClientOptions.ts:239:13)
+    at new t (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:342:7)
+    at new PrismaService (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\src\prisma.service.ts:11:5)
+    at Injector.instantiateClass (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@nestjs\core\injector\injector.js:422:19)
+    at callback (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@nestjs\core\injector\injector.js:70:45)
+    at async Injector.resolveConstructorParams (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@nestjs\core\injector\injector.js:170:24)
+    at async Injector.loadInstance (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@nestjs\core\injector\injector.js:75:13)
+    at async Injector.loadProvider (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@nestjs\core\injector\injector.js:103:9)
+    at async C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@nestjs\core\injector\instance-loader.js:56:13
+    at async Promise.all (index 4)

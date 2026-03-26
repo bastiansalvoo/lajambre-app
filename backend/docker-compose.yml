@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15
+    container_name: lajambre-db
+    restart: always
+    environment:
+      POSTGRES_USER: user_lajambre
+      POSTGRES_PASSWORD: password_lajambre
+      POSTGRES_DB: lajambre_db
+    ports:
+      - "5432:5432"
