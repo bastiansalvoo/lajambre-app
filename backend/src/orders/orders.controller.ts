@@ -10,6 +10,7 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Query,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -19,11 +20,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { OrderStatus } from '@prisma/client';
 
 interface RequestWithUser extends ExpressRequest {
-  user: {
-    userId: number;
-    email: string;
-    role: string;
-  };
+  user: { userId: number; email: string; role: string };
 }
 
 @Controller('orders')
@@ -33,11 +30,24 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
-  async create(
-    @Body() createOrderDto: CreateOrderDto,
+  async create(@Body() dto: CreateOrderDto, @Request() req: RequestWithUser) {
+    return this.ordersService.create(dto, req.user.userId);
+  }
+
+  // NUEVO: Iniciar proceso de pago
+  @Post(':id/pay')
+  async startPayment(
+    @Param('id', ParseIntPipe) id: number,
     @Request() req: RequestWithUser,
   ) {
-    return this.ordersService.create(createOrderDto, req.user.userId);
+    return this.ordersService.startPayment(id, req.user.userId);
+  }
+
+  // NUEVO: Callback de Webpay (Confirmación)
+  // Transbank redirige aquí con un query param 'token_ws'
+  @Get('webpay/confirm')
+  async confirm(@Query('token_ws') token: string) {
+    return this.ordersService.confirmPayment(token);
   }
 
   @Get('admin/all')
@@ -63,7 +73,7 @@ export class OrdersController {
   @UseGuards(RolesGuard)
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body('status') status: OrderStatus, // Tipado correctamente
+    @Body('status') status: OrderStatus,
   ) {
     return this.ordersService.updateStatus(id, status);
   }

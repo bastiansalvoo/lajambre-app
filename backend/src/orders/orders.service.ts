@@ -1,30 +1,41 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus } from '@prisma/client';
+import { WebpayService } from './webpay.service';
+
+export interface WebpayCreateResponse {
+  token: string;
+  url: string;
+}
+
+export interface WebpayCommitResponse {
+  status: string;
+  vci?: string;
+  amount?: number;
+  buy_order?: string;
+}
 
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private webpay: WebpayService,
+  ) {}
 
   async create(createOrderDto: CreateOrderDto, userId: number) {
-    let totalOrder = 0;
     const deliveryFee = 1000;
-
-    // 1. Iniciamos una transacción para que todo sea atómico
     return this.prisma.$transaction(async (tx) => {
-      // Creamos la orden base
       const order = await tx.order.create({
-        data: {
-          userId,
-          total: 0, // Lo actualizaremos al final del cálculo
-          deliveryFee,
-          // address y phone se podrían sacar del perfil, pero los pasamos por ahora
-        },
+        data: { userId, total: 0, deliveryFee },
       });
 
+      let totalOrder = 0;
       for (const item of createOrderDto.items) {
-        // Buscamos el producto real para sacar el precio verídico
         const product = await tx.product.findUnique({
           where: { id: item.productId },
         });
@@ -34,8 +45,6 @@ export class OrdersService {
           );
 
         let itemTotal = product.price * item.quantity;
-
-        // Creamos el detalle del pedido (OrderItem)
         const orderItem = await tx.orderItem.create({
           data: {
             orderId: order.id,
@@ -45,7 +54,6 @@ export class OrdersService {
           },
         });
 
-        // Si hay extras, los procesamos
         if (item.extraIds && item.extraIds.length > 0) {
           for (const extraId of item.extraIds) {
             const extra = await tx.extra.findUnique({ where: { id: extraId } });
@@ -64,16 +72,57 @@ export class OrdersService {
         totalOrder += itemTotal;
       }
 
-      // Sumamos el envío al total final
-      const finalTotal = totalOrder + deliveryFee;
-
-      // Actualizamos la orden con el total real calculado
       return tx.order.update({
         where: { id: order.id },
-        data: { total: finalTotal },
+        data: { total: totalOrder + deliveryFee },
         include: { items: { include: { extras: true } } },
       });
     });
+  }
+
+  async startPayment(orderId: number, userId: number) {
+    const order = await this.findOne(orderId, userId);
+    if (order.status !== 'PENDIENTE') {
+      throw new BadRequestException('El pedido ya no está pendiente de pago');
+    }
+
+    const buyOrder = `ORD-${order.id}-${Math.floor(Math.random() * 1000)}`;
+    const sessionId = `USR-${userId}`;
+    const returnUrl =
+      process.env.WEBPAY_RETURN_URL ||
+      'http://localhost:3000/orders/webpay/confirm';
+
+    const response = (await this.webpay.create(
+      buyOrder,
+      sessionId,
+      order.total,
+      returnUrl,
+    )) as WebpayCreateResponse;
+
+    await this.prisma.order.update({
+      where: { id: order.id },
+      data: { buyOrder, sessionId: response.token },
+    });
+
+    return response;
+  }
+
+  async confirmPayment(token: string) {
+    const result = (await this.webpay.commit(token)) as WebpayCommitResponse;
+    const order = await this.prisma.order.findFirst({
+      where: { sessionId: token },
+    });
+
+    if (!order) throw new NotFoundException('Token de pago no reconocido');
+
+    if (result.status === 'AUTHORIZED') {
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: { status: 'PAGADO' },
+      });
+      return { status: 'success', orderId: order.id };
+    }
+    return { status: 'failed', orderId: order.id };
   }
 
   async findAllByUser(userId: number) {
@@ -81,42 +130,31 @@ export class OrdersService {
       where: { userId },
       include: {
         items: {
-          include: {
-            product: true,
-            extras: { include: { extra: true } },
-          },
+          include: { product: true, extras: { include: { extra: true } } },
         },
       },
-      orderBy: { createdAt: 'desc' }, // Los más nuevos primero
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  // 2. Obtener UN pedido por ID (con validación de dueño)
   async findOne(id: number, userId: number) {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: {
         items: {
-          include: {
-            product: true,
-            extras: { include: { extra: true } },
-          },
+          include: { product: true, extras: { include: { extra: true } } },
         },
       },
     });
-
-    if (!order || order.userId !== userId) {
-      throw new NotFoundException(
-        'Pedido no encontrado o no tienes permiso para verlo',
-      );
-    }
+    if (!order || order.userId !== userId)
+      throw new NotFoundException('Pedido no encontrado');
     return order;
   }
 
   async findAllForAdmin() {
     return this.prisma.order.findMany({
       include: {
-        user: { select: { name: true, email: true, phone: true } }, // Sabemos quién pidió
+        user: { select: { name: true, email: true, phone: true } },
         items: { include: { product: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -124,12 +162,6 @@ export class OrdersService {
   }
 
   async updateStatus(id: number, status: OrderStatus) {
-    const order = await this.prisma.order.findUnique({ where: { id } });
-    if (!order) throw new NotFoundException('Pedido no encontrado');
-
-    return this.prisma.order.update({
-      where: { id },
-      data: { status }, // Ahora los tipos coinciden perfectamente
-    });
+    return this.prisma.order.update({ where: { id }, data: { status } });
   }
 }
