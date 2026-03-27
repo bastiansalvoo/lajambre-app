@@ -9,13 +9,12 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   constructor() {
-    // 1. Creamos el Pool nativo de conexiones con la URL de tu .env
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const pool = new Pool({
+      // Forzamos que sea un string para que el driver no explote
+      connectionString: process.env.DATABASE_URL || '',
+    });
 
-    // 2. Lo conectamos al adaptador oficial
-    const adapter = new PrismaPg(pool as any);
-
-    // 3. Le entregamos el adaptador a Prisma 7
+    const adapter = new PrismaPg(pool as any); // PrismaPg espera un Pool de pg, pero el tipo de PrismaClient es diferente, así que hacemos un cast 
     super({ adapter });
   }
 

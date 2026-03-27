@@ -22,6 +22,16 @@ export class ProductsService {
     });
   }
 
+  async updateImage(id: number, fileName: string) {
+    // Generamos la URL accesible (asumiendo que el server corre en el 3000)
+    const imageUrl = `http://localhost:3000/uploads/${fileName}`;
+
+    return this.prisma.product.update({
+      where: { id },
+      data: { image: imageUrl },
+    });
+  }
+
   // Los métodos de abajo son para Angelo, los dejamos limpios para el linter
   create(createProductDto: CreateProductDto) {
     return { message: 'Creando...', data: createProductDto };
