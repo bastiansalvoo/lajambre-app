@@ -1,8 +1,8 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
-// 1. Definimos la estructura exacta del Token (¡Adiós 'any'!)
 interface JwtPayload {
   sub: number;
   email: string;
@@ -11,15 +11,16 @@ interface JwtPayload {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
+  constructor(private configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: 'super_secreto_lajambre_2026',
+      // Le aseguramos a TS que si no encuentra el .env, usará este string
+      secretOrKey:
+        configService.get<string>('JWT_SECRET') || 'secreto_de_respaldo_123',
     });
   }
 
-  // 2. Quitamos el 'async' porque no hacemos consultas asíncronas aquí
   validate(payload: JwtPayload) {
     return { userId: payload.sub, email: payload.email, role: payload.role };
   }

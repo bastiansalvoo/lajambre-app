@@ -24,18 +24,19 @@ interface RequestWithUser extends ExpressRequest {
 }
 
 @Controller('orders')
-@UseGuards(AuthGuard('jwt'))
 @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
+  @UseGuards(AuthGuard('jwt'))
   async create(@Body() dto: CreateOrderDto, @Request() req: RequestWithUser) {
     return this.ordersService.create(dto, req.user.userId);
   }
 
   // NUEVO: Iniciar proceso de pago
   @Post(':id/pay')
+  @UseGuards(AuthGuard('jwt'))
   async startPayment(
     @Param('id', ParseIntPipe) id: number,
     @Request() req: RequestWithUser,
@@ -45,23 +46,26 @@ export class OrdersController {
 
   // NUEVO: Callback de Webpay (Confirmación)
   // Transbank redirige aquí con un query param 'token_ws'
+  // Esta ruta DEBE ser pública para recibir la redirección de Transbank
   @Get('webpay/confirm')
   async confirm(@Query('token_ws') token: string) {
     return this.ordersService.confirmPayment(token);
   }
 
   @Get('admin/all')
-  @UseGuards(RolesGuard)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   async findAllAdmin() {
     return this.ordersService.findAllForAdmin();
   }
 
   @Get()
+  @UseGuards(AuthGuard('jwt'))
   async findAll(@Request() req: RequestWithUser) {
     return this.ordersService.findAllByUser(req.user.userId);
   }
 
   @Get(':id')
+  @UseGuards(AuthGuard('jwt'))
   async findOne(
     @Param('id', ParseIntPipe) id: number,
     @Request() req: RequestWithUser,
@@ -70,7 +74,7 @@ export class OrdersController {
   }
 
   @Patch(':id/status')
-  @UseGuards(RolesGuard)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: OrderStatus,

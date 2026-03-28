@@ -1,18 +1,16 @@
+// src/extras/dto/create-extra.dto.ts
 import { IsString, IsNumber, IsBoolean, IsOptional } from 'class-validator';
 
-export class CreateProductDto {
+export class CreateExtraDto {
   @IsString()
   name: string;
-
-  @IsString()
-  // Quitamos el @IsOptional() y el signo de interrogación (?)
-  description: string;
 
   @IsNumber()
   price: number;
 
-  @IsNumber()
-  categoryId: number;
+  @IsString()
+  @IsOptional()
+  description?: string;
 
   @IsBoolean()
   @IsOptional()

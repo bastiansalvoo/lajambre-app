@@ -59,6 +59,7 @@ model Extra {
   id              Int              @id @default(autoincrement())
   name            String
   price           Int
+  isAvailable Boolean     @default(true)
   orderItemExtras OrderItemExtra[]
 }
 
@@ -68,7 +69,7 @@ model Order {
   userId       Int
   status       OrderStatus @default(PENDIENTE)
   total        Int
-  deliveryFee  Int         @default(1000)
+  deliveryFee  Int         @default(1250) // Cambiado de 1000 a 1250 para ser coherente con el servicio
   
   // Campos críticos para Webpay Plus
   buyOrder     String?     @unique
@@ -77,6 +78,8 @@ model Order {
   items        OrderItem[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+
+  @@index([userId])
 }
 
 model OrderItem {
@@ -89,6 +92,9 @@ model OrderItem {
   priceAtPurchase Int // Guardamos el precio del momento de la venta
   
   extras    OrderItemExtra[]
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 model OrderItemExtra {
@@ -98,4 +104,7 @@ model OrderItemExtra {
   extra           Extra     @relation(fields: [extraId], references: [id])
   extraId         Int
   priceAtPurchase Int
+
+  @@index([orderItemId])
+  @@index([extraId])
 }

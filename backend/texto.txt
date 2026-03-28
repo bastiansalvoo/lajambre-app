@@ -1,15 +1,56 @@
-porque me da este error en consola al ejecutar pnpm run start:dev:
+¡Hola! He revisado el estado actual del backend de tu proyecto "Lajambre-app". Aquí tienes un resumen completo de lo que llevamos hasta ahora y algunas recomendaciones clave para la etapa de despliegue.
 
-[Nest] 24408  - 26/03/2026, 17:29:47     LOG [NestFactory] Starting Nest application...
-[Nest] 24408  - 26/03/2026, 17:29:47   ERROR [ExceptionHandler] PrismaClientConstructorValidationError: Unknown property datasources provided to PrismaClient constructor.
-Read more at https://pris.ly/d/client-constructor
-    at validatePrismaClientOptions (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@prisma\client\src\runtime\utils\validatePrismaClientOptions.ts:239:13)
-    at new t (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:342:7)
-    at new PrismaService (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\src\prisma.service.ts:11:5)
-    at Injector.instantiateClass (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@nestjs\core\injector\injector.js:422:19)
-    at callback (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@nestjs\core\injector\injector.js:70:45)
-    at async Injector.resolveConstructorParams (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@nestjs\core\injector\injector.js:170:24)
-    at async Injector.loadInstance (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@nestjs\core\injector\injector.js:75:13)
-    at async Injector.loadProvider (C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@nestjs\core\injector\injector.js:103:9)
-    at async C:\Users\Gigabyte A520\Desktop\lajambre-app\backend\node_modules\@nestjs\core\injector\instance-loader.js:56:13
-    at async Promise.all (index 4)
+### 📝 Resumen del Estado Actual del Proyecto (Backend)
+
+1. **Stack Tecnológico Principal:**
+   - **Framework:** NestJS (versión 11) con TypeScript.
+   - **Base de Datos:** PostgreSQL.
+   - **ORM (Manejo de Base de Datos):** Prisma ORM (esquema definido en `schema.prisma`).
+   - **Gestor de Paquetes:** pnpm.
+
+2. **Módulos Desarrollados:**
+   - **Auth Module:** Sistema de autenticación utilizando JWT (JSON Web Tokens) y Passport. Incluye `RolesGuard` para proteger rutas que requieren permisos de administrador. Hash de contraseñas con bcrypt.
+   - **Users Module:** Gestión de usuarios con roles definidos (`ADMIN` y `USER`).
+   - **Products y Categories Module:** Gestión del menú/productos. Relacionados mediante IDs. Incluyen descripción, precio, disponibilidad (`isAvailable`), e imagen local.
+   - **Extras Module:** Gestión de agregados para los productos (ej. extra salsa, papas), con su precio y estado de disponibilidad.
+   - **Orders Module:** El sistema de carritos y órdenes. Contiene la lógica para registrar los productos y extras solicitados, calcular el costo de envío (1250 configurado) y el total. Maneja estados (`PENDIENTE`, `PAGADO`, `EN_CAMINO`, `ENTREGADO`, `CANCELADO`).
+
+3. **Integración de Pagos:**
+   - **Transbank (Webpay Plus):** Integrado a través de `transbank-sdk`. En el controlador de órdenes están las rutas para iniciar el pago (`/:id/pay`) y para confirmar el callback de Webpay (`/webpay/confirm`).
+
+4. **Almacenamiento de Archivos:**
+   - Servidor estático de Express configurado en `main.ts` para exponer la carpeta `uploads` de manera pública (para poder ver las imágenes de los productos en el frontend).
+
+5. **Validaciones Generales:**
+   - Uso de `class-validator` y `ValidationPipe` de forma global para asegurar que los datos enviados a los endpoints sean correctos y sin campos maliciosos extra.
+
+---
+
+### 🚀 Recomendaciones para el Despliegue (Producción)
+
+Dado que te acercas a una etapa en donde el proyecto tendrá que estar "en vivo" para clientes reales, te recomiendo prestar atención a los siguientes puntos para evitar dolores de cabeza:
+
+1. **Gestión de variables de entorno (.env):**
+   - Asegúrate de tener una estrategia firme para tu `.env` de producción. En especial tu `JWT_SECRET` debe ser una cadena muy segura y el string de conexión `DATABASE_URL` no debe ser público.
+
+2. **Archivos estáticos e Imágenes (¡Muy Importante!):**
+   - Actualmente guardan imágenes directamente en la carpeta `/uploads` del servidor. Si despliegas usando contenedores (Docker) o servicios como Railway/Render o Heroku, al reiniciarse el servidor **se borrarán las imágenes**.
+   - **Recomendación:** Consideren integrar un servicio de la nube gratuito/barato para guardar imágenes, como AWS S3, Cloudinary, o Supabase Storage.
+
+3. **CORS (Cross-Origin Resource Sharing):**
+   - Hoy por hoy tu app acepta peticiones. En producción, en tu archivo `main.ts`, debes configurar el CORS de NestJS para que solo la URL de tu frontend pueda hacer peticiones al backend. Ejemplo: `app.enableCors({ origin: 'https://midominio.com' });`
+
+4. **Cambio de credenciales de Transbank:**
+   - Para producción tendrán que solicitar el paso a producción con Transbank, rellenar formularios y cambiar el entorno de "Integración" al de "Producción" recibiendo sus Códigos de Comercio (Commerce Code) y Api Key Reales.
+
+5. **Migraciones de Prisma:**
+   - Al hacer deploy, asegúrate de correr el comando `npx prisma migrate deploy` en tu entorno final en vez de `prisma db push` (que es más para desarrollo).
+
+6. **Seguridad General:**
+   - Agregar validaciones de **Rate Limiting** (paquete `@nestjs/throttler` en Nest) para evitar ataques de fuerza bruta al login o spam de peticiones.
+   - Integrar la gema `helmet` (`npm i helmet`) que en NestJS se configura con 2 líneas de código en el `main.ts` y te cubre contra muchas vulnerabilidades web comunes.
+
+7. **HTTPS Obligatorio:**
+   - Transbank exige y cualquier app moderna lo necesita: tu dominio del backend debe contar con certificado SSL (comenzar con https://). Esto dependerá de dónde lo subas (servicios como Vercel/Railway te lo dan gratis automáticamente, si usas una VPS deberás configurar NGINX o similar).
+
+Si necesitas ahondar en alguno de los puntos arriba o si retomamos con otra funcionalidad, dime. ¡Buen trabajo con la arquitectura!

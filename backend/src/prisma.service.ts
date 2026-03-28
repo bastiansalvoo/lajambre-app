@@ -14,7 +14,7 @@ export class PrismaService
       connectionString: process.env.DATABASE_URL || '',
     });
 
-    const adapter = new PrismaPg(pool as any); // PrismaPg espera un Pool de pg, pero el tipo de PrismaClient es diferente, así que hacemos un cast 
+    const adapter = new PrismaPg(pool as any); // PrismaPg espera un Pool de pg, pero el tipo de PrismaClient es diferente, así que hacemos un cast
     super({ adapter });
   }
 
