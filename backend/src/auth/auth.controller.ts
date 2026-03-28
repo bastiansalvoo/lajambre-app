@@ -43,4 +43,11 @@ export class AuthController {
   ) {
     return { mensaje: 'Acceso autorizado', usuario: req.user };
   }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('recompensas')
+  async getRecompensas(@Request() req: { user: { userId: number } }) {
+    // Llamamos a la magia que acabamos de crear en el servicio
+    return this.usersService.getRewardsInfo(req.user.userId);
+  }
 }

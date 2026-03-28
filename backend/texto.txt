@@ -1,56 +1,53 @@
-¡Hola! He revisado el estado actual del backend de tu proyecto "Lajambre-app". Aquí tienes un resumen completo de lo que llevamos hasta ahora y algunas recomendaciones clave para la etapa de despliegue.
+# Resumen del Proyecto: Lajambre App (Backend)
 
-### 📝 Resumen del Estado Actual del Proyecto (Backend)
+## ¿Qué tenemos?
+El proyecto es una aplicación backend (APIRest) desarrollada con **NestJS**, utilizando **Prisma ORM** y una base de datos **PostgreSQL**.
+Está orientada hacia un sistema de e-commerce o restaurante de comida a domicilio ("Lajambre"). 
+El sistema gestiona usuarios, productos, categorías, extras para los productos, carritos/órdenes de compra y cuenta con una integración de pagos electrónicos mediante **Webpay Plus**.
 
-1. **Stack Tecnológico Principal:**
-   - **Framework:** NestJS (versión 11) con TypeScript.
-   - **Base de Datos:** PostgreSQL.
-   - **ORM (Manejo de Base de Datos):** Prisma ORM (esquema definido en `schema.prisma`).
-   - **Gestor de Paquetes:** pnpm.
-
-2. **Módulos Desarrollados:**
-   - **Auth Module:** Sistema de autenticación utilizando JWT (JSON Web Tokens) y Passport. Incluye `RolesGuard` para proteger rutas que requieren permisos de administrador. Hash de contraseñas con bcrypt.
-   - **Users Module:** Gestión de usuarios con roles definidos (`ADMIN` y `USER`).
-   - **Products y Categories Module:** Gestión del menú/productos. Relacionados mediante IDs. Incluyen descripción, precio, disponibilidad (`isAvailable`), e imagen local.
-   - **Extras Module:** Gestión de agregados para los productos (ej. extra salsa, papas), con su precio y estado de disponibilidad.
-   - **Orders Module:** El sistema de carritos y órdenes. Contiene la lógica para registrar los productos y extras solicitados, calcular el costo de envío (1250 configurado) y el total. Maneja estados (`PENDIENTE`, `PAGADO`, `EN_CAMINO`, `ENTREGADO`, `CANCELADO`).
-
-3. **Integración de Pagos:**
-   - **Transbank (Webpay Plus):** Integrado a través de `transbank-sdk`. En el controlador de órdenes están las rutas para iniciar el pago (`/:id/pay`) y para confirmar el callback de Webpay (`/webpay/confirm`).
-
-4. **Almacenamiento de Archivos:**
-   - Servidor estático de Express configurado en `main.ts` para exponer la carpeta `uploads` de manera pública (para poder ver las imágenes de los productos en el frontend).
-
-5. **Validaciones Generales:**
-   - Uso de `class-validator` y `ValidationPipe` de forma global para asegurar que los datos enviados a los endpoints sean correctos y sin campos maliciosos extra.
+### Entidades de Base de Datos (Modelos)
+- **User (Usuarios):** Información del cliente y del administrador (nombre, email, contraseña, teléfono, dirección y rol).
+- **Category & Product (Catálogo):** Productos agrupados por categorías. Cada producto cuenta con nombre, precio, descripción, imagen y un estado de "disponible/no disponible".
+- **Extra:** Ingredientes o adiciones extra (con su respectivo precio) que pueden adjuntarse a los ítems del pedido.
+- **Order (Órdenes de Compra):** Los pedidos generados por los clientes. Gestionan estados de entrega (`PENDIENTE`, `PAGADO`, `EN_CAMINO`, `ENTREGADO`, `CANCELADO`), un cargo por envío ('Delivery Fee'), y los datos de transacción de Transbank (`buyOrder` y `sessionId`).
+- **OrderItem & OrderItemExtra:** Representan el detalle de un pedido. Guardan un registro histórico del precio de cada producto y sus extras al momento específico de la compra.
 
 ---
 
-### 🚀 Recomendaciones para el Despliegue (Producción)
+## Funcionalidades del Sistema (Lo que se puede hacer)
 
-Dado que te acercas a una etapa en donde el proyecto tendrá que estar "en vivo" para clientes reales, te recomiendo prestar atención a los siguientes puntos para evitar dolores de cabeza:
+### 🧑‍💻 ¿Qué cosas puede hacer el Usuario (USER)?
+El cliente tiene todo lo necesario para interactuar con la tienda y realizar pedidos de forma autónoma:
 
-1. **Gestión de variables de entorno (.env):**
-   - Asegúrate de tener una estrategia firme para tu `.env` de producción. En especial tu `JWT_SECRET` debe ser una cadena muy segura y el string de conexión `DATABASE_URL` no debe ser público.
+1. **Gestión de su cuenta:**
+   - Registrarse en la plataforma (`/auth/register`).
+   - Iniciar sesión (`/auth/login`).
+   - Consultar la información de su perfil autenticado (`/auth/perfil`).
 
-2. **Archivos estáticos e Imágenes (¡Muy Importante!):**
-   - Actualmente guardan imágenes directamente en la carpeta `/uploads` del servidor. Si despliegas usando contenedores (Docker) o servicios como Railway/Render o Heroku, al reiniciarse el servidor **se borrarán las imágenes**.
-   - **Recomendación:** Consideren integrar un servicio de la nube gratuito/barato para guardar imágenes, como AWS S3, Cloudinary, o Supabase Storage.
+2. **Exploración del Catálogo:**
+   - Ver el listado completo de productos (`/products`).
+   - Ver el detalle de un producto específico (`/products/:id`).
+   - Ver los agregados y complementos disponibles (`/extras`).
 
-3. **CORS (Cross-Origin Resource Sharing):**
-   - Hoy por hoy tu app acepta peticiones. En producción, en tu archivo `main.ts`, debes configurar el CORS de NestJS para que solo la URL de tu frontend pueda hacer peticiones al backend. Ejemplo: `app.enableCors({ origin: 'https://midominio.com' });`
+3. **Gestión de Pedidos y Pagos:**
+   - Crear un nuevo pedido con sus productos y extras (`/orders`).
+   - Iniciar el proceso de pago para un pedido a través de Webpay Plus (`/orders/:id/pay`).
+   - Revisar su historial de pedidos personales (`/orders`).
+   - Ver los detalles de un pedido específico (`/orders/:id`).
 
-4. **Cambio de credenciales de Transbank:**
-   - Para producción tendrán que solicitar el paso a producción con Transbank, rellenar formularios y cambiar el entorno de "Integración" al de "Producción" recibiendo sus Códigos de Comercio (Commerce Code) y Api Key Reales.
+---
 
-5. **Migraciones de Prisma:**
-   - Al hacer deploy, asegúrate de correr el comando `npx prisma migrate deploy` en tu entorno final en vez de `prisma db push` (que es más para desarrollo).
+### 👑 ¿Qué cosas puede hacer el Administrador (ADMIN)?
+El administrador controla el contenido de la plataforma y el despacho de las ventas. (Además de tener acceso visual al catálogo general como cualquier usuario, puede gestionar operaciones CRUD reservadas para el rol `ADMIN`):
 
-6. **Seguridad General:**
-   - Agregar validaciones de **Rate Limiting** (paquete `@nestjs/throttler` en Nest) para evitar ataques de fuerza bruta al login o spam de peticiones.
-   - Integrar la gema `helmet` (`npm i helmet`) que en NestJS se configura con 2 líneas de código en el `main.ts` y te cubre contra muchas vulnerabilidades web comunes.
+1. **Gestión de Inventario y Catálogo:**
+   - Crear nuevos productos (`/products`).
+   - Actualizar los detalles, precio y/o disponibilidad de un producto (`/products/:id`).
+   - Cambiar o subir imágenes a los productos (`/products/:id/image`).
+   - Eliminar un producto permanentemente (`/products/:id`).
+   - Crear y establecer nuevos 'Extras' (agregados/toppings) (`/extras`).
+   - Actualizar la información de los 'Extras' (`/extras/:id`).
 
-7. **HTTPS Obligatorio:**
-   - Transbank exige y cualquier app moderna lo necesita: tu dominio del backend debe contar con certificado SSL (comenzar con https://). Esto dependerá de dónde lo subas (servicios como Vercel/Railway te lo dan gratis automáticamente, si usas una VPS deberás configurar NGINX o similar).
-
-Si necesitas ahondar en alguno de los puntos arriba o si retomamos con otra funcionalidad, dime. ¡Buen trabajo con la arquitectura!
+2. **Gestión Operativa de Ventas:**
+   - Ver una lista global con **todos** los pedidos del sistema, de todos los clientes (`/orders/admin/all`).
+   - Gestionar logística actualizando los estados de los pedidos (`/orders/:id/status`), por ejemplo, pasándolo a `EN_CAMINO` o `ENTREGADO` para que el flujo de compra continúe de forma correcta.

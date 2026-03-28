@@ -4,6 +4,7 @@ import {
   IsString,
   IsOptional,
   ValidateNested,
+  IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -17,7 +18,7 @@ class OrderItemDto {
   @IsOptional()
   @IsArray()
   @IsNumber({}, { each: true })
-  extraIds?: number[]; // Lista de IDs de los extras (carne extra, etc.)
+  extraIds?: number[];
 }
 
 export class CreateOrderDto {
@@ -31,4 +32,10 @@ export class CreateOrderDto {
 
   @IsString()
   phone: string;
+
+  // --- NUEVO: SISTEMA DE PUNTOS ---
+  @IsOptional()
+  @IsString()
+  @IsIn(['FREE_DELIVERY', 'FREE_BEVERAGE', 'FREE_BURGER'])
+  rewardType?: string;
 }

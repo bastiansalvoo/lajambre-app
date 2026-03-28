@@ -5,10 +5,9 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  
 }
 
-// --- ENUMS: Valores fijos para evitar errores de escritura ---
+// --- ENUMS ---
 enum Role {
   USER
   ADMIN
@@ -22,17 +21,28 @@ enum OrderStatus {
   CANCELADO
 }
 
+enum PointTransactionType {
+  EARNED
+  REDEEMED
+  EXPIRED
+}
+
 // --- MODELOS DE DATOS ---
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  name      String
-  phone     String
-  address   String?
-  role      Role     @default(USER)
-  orders    Order[]
+  id       Int     @id @default(autoincrement())
+  email    String  @unique
+  password String
+  name     String
+  phone    String
+  address  String?
+  role     Role    @default(USER)
+  orders   Order[]
+
+  // --- SISTEMA DE PUNTOS ---
+  pointsBalance     Int                @default(0)
+  pointTransactions PointTransaction[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -59,39 +69,45 @@ model Extra {
   id              Int              @id @default(autoincrement())
   name            String
   price           Int
-  isAvailable Boolean     @default(true)
+  isAvailable     Boolean          @default(true)
   orderItemExtras OrderItemExtra[]
 }
 
 model Order {
-  id           Int         @id @default(autoincrement())
-  user         User        @relation(fields: [userId], references: [id])
-  userId       Int
-  status       OrderStatus @default(PENDIENTE)
-  total        Int
-  deliveryFee  Int         @default(1250) // Cambiado de 1000 a 1250 para ser coherente con el servicio
-  
-  // Campos críticos para Webpay Plus
-  buyOrder     String?     @unique
-  sessionId    String?
-  
-  items        OrderItem[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id          Int         @id @default(autoincrement())
+  user        User        @relation(fields: [userId], references: [id])
+  userId      Int
+  status      OrderStatus @default(PENDIENTE)
+  total       Int
+  deliveryFee Int         @default(1250)
+
+  // --- SISTEMA DE PUNTOS ---
+  pointsEarned      Int                @default(0)
+  pointsUsed        Int                @default(0)
+  rewardType        String? // Ej: 'FREE_DELIVERY', 'FREE_BEVERAGE', 'FREE_BURGER'
+  pointTransactions PointTransaction[]
+
+  // Campos Webpay Plus
+  buyOrder  String? @unique
+  sessionId String?
+
+  items     OrderItem[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   @@index([userId])
 }
 
 model OrderItem {
-  id        Int      @id @default(autoincrement())
-  order     Order    @relation(fields: [orderId], references: [id])
-  orderId   Int
-  product   Product  @relation(fields: [productId], references: [id])
-  productId Int
-  quantity  Int
-  priceAtPurchase Int // Guardamos el precio del momento de la venta
-  
-  extras    OrderItemExtra[]
+  id              Int     @id @default(autoincrement())
+  order           Order   @relation(fields: [orderId], references: [id])
+  orderId         Int
+  product         Product @relation(fields: [productId], references: [id])
+  productId       Int
+  quantity        Int
+  priceAtPurchase Int
+
+  extras OrderItemExtra[]
 
   @@index([orderId])
   @@index([productId])
@@ -107,4 +123,19 @@ model OrderItemExtra {
 
   @@index([orderItemId])
   @@index([extraId])
+}
+
+// --- HISTORIAL DE PUNTOS ---
+model PointTransaction {
+  id        Int                  @id @default(autoincrement())
+  user      User                 @relation(fields: [userId], references: [id])
+  userId    Int
+  order     Order?               @relation(fields: [orderId], references: [id])
+  orderId   Int?
+  points    Int // Positivo si gana, negativo si canjea
+  type      PointTransactionType
+  expiresAt DateTime? // Fecha de vencimiento (90 días)
+  createdAt DateTime             @default(now())
+
+  @@index([userId])
 }
