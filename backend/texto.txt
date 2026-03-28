@@ -1,53 +1,17 @@
-# Resumen del Proyecto: Lajambre App (Backend)
+VEREDICTO FINAL: LISTO PARA FRONTEND
 
-## ¿Qué tenemos?
-El proyecto es una aplicación backend (APIRest) desarrollada con **NestJS**, utilizando **Prisma ORM** y una base de datos **PostgreSQL**.
-Está orientada hacia un sistema de e-commerce o restaurante de comida a domicilio ("Lajambre"). 
-El sistema gestiona usuarios, productos, categorías, extras para los productos, carritos/órdenes de compra y cuenta con una integración de pagos electrónicos mediante **Webpay Plus**.
+Análisis de Criterios de Auditoría:
 
-### Entidades de Base de Datos (Modelos)
-- **User (Usuarios):** Información del cliente y del administrador (nombre, email, contraseña, teléfono, dirección y rol).
-- **Category & Product (Catálogo):** Productos agrupados por categorías. Cada producto cuenta con nombre, precio, descripción, imagen y un estado de "disponible/no disponible".
-- **Extra:** Ingredientes o adiciones extra (con su respectivo precio) que pueden adjuntarse a los ítems del pedido.
-- **Order (Órdenes de Compra):** Los pedidos generados por los clientes. Gestionan estados de entrega (`PENDIENTE`, `PAGADO`, `EN_CAMINO`, `ENTREGADO`, `CANCELADO`), un cargo por envío ('Delivery Fee'), y los datos de transacción de Transbank (`buyOrder` y `sessionId`).
-- **OrderItem & OrderItemExtra:** Representan el detalle de un pedido. Guardan un registro histórico del precio de cada producto y sus extras al momento específico de la compra.
+1. Autenticación: OK. El flujo está correctamente protegido con `@UseGuards(AuthGuard('jwt'))` en los endpoints correspondientes como `/perfil` y `/recompensas`, y expone los datos guardados en el token en `req.user`.
 
----
+2. E-commerce: OK. La integración de Webpay en `orders.service.ts` valida `AUTHORIZED` para actualizar la orden a 'PAGADO' y de lo contrario a 'CANCELADO'. En la creación de la orden se valida adecuadamente la propiedad `isAvailable` de productos y agregados.
 
-## Funcionalidades del Sistema (Lo que se puede hacer)
+3. Sistema de Puntos: OK. 
+   - Se calcula correctamente usando `Math.floor(order.total / 100)`.
+   - El multiplicador de Martes (x1.5) está implementado verificando `hoy.getDay() === 2`.
+   - Se asigna correctamente la fecha de expiración a 90 días usando `expiresAt.setDate(expiresAt.getDate() + 90)`.
+   - El Cron Job nocturno está correctamente decorado con `@Cron('0 3 * * *')` en el `UsersService` y el `ScheduleModule.forRoot()` está habilitado de forma global en `app.module.ts`.
 
-### 🧑‍💻 ¿Qué cosas puede hacer el Usuario (USER)?
-El cliente tiene todo lo necesario para interactuar con la tienda y realizar pedidos de forma autónoma:
+4. Gamificación: OK. El método `getRewardsInfo` llamado por el endpoint `/auth/recompensas` determina de forma correcta los niveles Bronce (0-499), Plata (500-1499) y Oro (1500+) de acuerdo a los puntos acumulados.
 
-1. **Gestión de su cuenta:**
-   - Registrarse en la plataforma (`/auth/register`).
-   - Iniciar sesión (`/auth/login`).
-   - Consultar la información de su perfil autenticado (`/auth/perfil`).
-
-2. **Exploración del Catálogo:**
-   - Ver el listado completo de productos (`/products`).
-   - Ver el detalle de un producto específico (`/products/:id`).
-   - Ver los agregados y complementos disponibles (`/extras`).
-
-3. **Gestión de Pedidos y Pagos:**
-   - Crear un nuevo pedido con sus productos y extras (`/orders`).
-   - Iniciar el proceso de pago para un pedido a través de Webpay Plus (`/orders/:id/pay`).
-   - Revisar su historial de pedidos personales (`/orders`).
-   - Ver los detalles de un pedido específico (`/orders/:id`).
-
----
-
-### 👑 ¿Qué cosas puede hacer el Administrador (ADMIN)?
-El administrador controla el contenido de la plataforma y el despacho de las ventas. (Además de tener acceso visual al catálogo general como cualquier usuario, puede gestionar operaciones CRUD reservadas para el rol `ADMIN`):
-
-1. **Gestión de Inventario y Catálogo:**
-   - Crear nuevos productos (`/products`).
-   - Actualizar los detalles, precio y/o disponibilidad de un producto (`/products/:id`).
-   - Cambiar o subir imágenes a los productos (`/products/:id/image`).
-   - Eliminar un producto permanentemente (`/products/:id`).
-   - Crear y establecer nuevos 'Extras' (agregados/toppings) (`/extras`).
-   - Actualizar la información de los 'Extras' (`/extras/:id`).
-
-2. **Gestión Operativa de Ventas:**
-   - Ver una lista global con **todos** los pedidos del sistema, de todos los clientes (`/orders/admin/all`).
-   - Gestionar logística actualizando los estados de los pedidos (`/orders/:id/status`), por ejemplo, pasándolo a `EN_CAMINO` o `ENTREGADO` para que el flujo de compra continúe de forma correcta.
+5. UX del API: OK. El JSON de respuesta generado por `getRewardsInfo` es altamente descriptivo. Entrega banderas booleanas (`alcanzado`), cálculos numéricos pre-resueltos (`faltan`) y strings formateados (`mensaje`) listos para ser renderizados directamente por la Mobile App sin que el Frontend tenga que realizar cálculos manuales.
