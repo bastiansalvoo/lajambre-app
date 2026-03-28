@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config'; // <-- Importa esto
+import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule'; // <-- Importamos el motor de Cron Jobs
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ProductsModule } from './products/products.module';
@@ -10,8 +11,8 @@ import { ExtrasModule } from './extras/extras.module';
 
 @Module({
   imports: [
-    // Esto carga el .env ANTES que cualquier otro módulo
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(), // <-- Encendemos el reloj interno de NestJS
     ProductsModule,
     AuthModule,
     UsersModule,

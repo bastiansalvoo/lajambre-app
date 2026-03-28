@@ -2,7 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  //ForbiddenException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -80,9 +80,11 @@ export class OrdersService {
 
   async create(createOrderDto: CreateOrderDto, userId: number) {
     // COMENTAMOS ESTO TEMPORALMENTE PARA PODER COMPRAR DE DÍA
-    // if (!this.isStoreOpen()) {
-    //   throw new ForbiddenException('Lajambre cerrado. Horario: Mar-Dom 18:30 a 00:00.');
-    // }
+    if (!this.isStoreOpen()) {
+      throw new ForbiddenException(
+        'Lajambre cerrado. Horario: Mar-Dom 18:30 a 00:00.',
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({ where: { id: userId } });
@@ -263,7 +265,13 @@ export class OrdersService {
 
       if (result.status === 'AUTHORIZED') {
         // --- 4. CALCULAR Y ENTREGAR PUNTOS AL PAGAR ---
-        const pointsEarned = Math.floor(order.total / 100);
+        let pointsEarned = Math.floor(order.total / 100);
+
+        // 🔥 MULTIPLICADOR PRO: Si hoy es Martes (día 2 de la semana), damos x1.5 puntos
+        const hoy = new Date();
+        if (hoy.getDay() === 2) {
+          pointsEarned = Math.floor(pointsEarned * 1.5);
+        }
 
         // Vencimiento en 90 días
         const expiresAt = new Date();

@@ -1,33 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
-import { Prisma } from '@prisma/client'; // <-- Importamos los tipos exactos
-import { NotFoundException } from '@nestjs/common';
+import { Prisma, PointTransactionType } from '@prisma/client';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  // Ahora TypeScript sabe exactamente qué campos tiene "data"
   async create(data: Prisma.UserCreateInput) {
-    // Generamos la sal (salt) y el hash de seguridad
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(data.password, salt);
-
-    // Guardamos en la DB con la contraseña protegida
     return this.prisma.user.create({
-      data: {
-        ...data,
-        password: hashedPassword,
-      },
+      data: { ...data, password: hashedPassword },
     });
   }
 
-  // Buscar usuario por email (para el Login posterior)
   async findOneByEmail(email: string) {
-    return this.prisma.user.findUnique({
-      where: { email },
-    });
+    return this.prisma.user.findUnique({ where: { email } });
   }
 
   async getRewardsInfo(userId: number) {
@@ -36,7 +26,7 @@ export class UsersService {
       include: {
         pointTransactions: {
           orderBy: { createdAt: 'desc' },
-          take: 10, // Traemos solo los últimos 10 movimientos para no saturar la app
+          take: 10,
         },
       },
     });
@@ -45,8 +35,14 @@ export class UsersService {
 
     const pts = user.pointsBalance;
 
+    // 🧠 GAMIFICACIÓN: Calculamos el nivel del cliente
+    let nivel = 'Bronce 🥉';
+    if (pts >= 1500) nivel = 'Oro 👑';
+    else if (pts >= 500) nivel = 'Plata 🥈';
+
     return {
       puntosActuales: pts,
+      nivelActual: nivel, // <-- Lo mandamos a la app móvil
       progreso: {
         bebida: {
           alcanzado: pts >= 150,
@@ -75,10 +71,58 @@ export class UsersService {
       },
       historial: user.pointTransactions.map((t) => ({
         id: t.id,
-        puntos: t.points, // Será positivo o negativo según si ganó o gastó
-        tipo: t.type, // 'EARNED' o 'REDEEMED'
+        puntos: t.points,
+        tipo: t.type,
         fecha: t.createdAt,
       })),
     };
+  }
+
+  // 🧹 ROBOT NOCTURNO: Se ejecuta todos los días a las 3:00 AM
+  @Cron('0 3 * * *')
+  async cleanExpiredPoints() {
+    console.log('Iniciando limpieza de puntos vencidos...');
+    const now = new Date();
+
+    // 1. Buscamos puntos ganados hace más de 90 días que aún no han sido procesados
+    const expiredTxs = await this.prisma.pointTransaction.findMany({
+      where: { type: PointTransactionType.EARNED, expiresAt: { lte: now } },
+    });
+
+    for (const tx of expiredTxs) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: tx.userId },
+      });
+
+      if (user && user.pointsBalance > 0) {
+        // Le quitamos los puntos (pero sin dejarlo en números negativos)
+        const pointsToRemove = Math.min(tx.points, user.pointsBalance);
+
+        await this.prisma.$transaction([
+          this.prisma.user.update({
+            where: { id: user.id },
+            data: { pointsBalance: { decrement: pointsToRemove } },
+          }),
+          this.prisma.pointTransaction.create({
+            data: {
+              userId: user.id,
+              points: -pointsToRemove,
+              type: PointTransactionType.EXPIRED,
+            },
+          }),
+          // Borramos la fecha para que el robot no la vuelva a leer mañana
+          this.prisma.pointTransaction.update({
+            where: { id: tx.id },
+            data: { expiresAt: null },
+          }),
+        ]);
+      } else {
+        // Si el usuario ya se gastó los puntos y tiene 0, solo marcamos la transacción como leída
+        await this.prisma.pointTransaction.update({
+          where: { id: tx.id },
+          data: { expiresAt: null },
+        });
+      }
+    }
   }
 }
