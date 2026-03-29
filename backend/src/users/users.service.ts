@@ -35,40 +35,61 @@ export class UsersService {
 
     const pts = user.pointsBalance;
 
-    // 🧠 GAMIFICACIÓN: Calculamos el nivel del cliente
+    // 🏆 Definición de los nuevos premios de Angelo
+    const listaPremios = [
+      { id: 'queso', nombre: 'Queso Extra', pts: 120, icono: '🧀' },
+      { id: 'bebida', nombre: 'Bebida Gratis', pts: 150, icono: '🥤' },
+      {
+        id: 'papas',
+        nombre: 'Papas Fritas Extra (130g)',
+        pts: 180,
+        icono: '🍟',
+      },
+      { id: 'delivery', nombre: 'Delivery Gratis', pts: 200, icono: '🚚' },
+      { id: 'tocino', nombre: 'Tocino Extra', pts: 200, icono: '🥓' },
+      { id: 'carne', nombre: 'Carne Extra', pts: 250, icono: '🥩' },
+      { id: 'dos_bebidas', nombre: '2 Bebidas', pts: 250, icono: '🥤🥤' },
+      {
+        id: 'upgrade',
+        nombre: 'Upgrade de Hamburguesa',
+        pts: 300,
+        icono: '🔝',
+      },
+      {
+        id: 'dos_por_uno',
+        nombre: 'Burger 2x1 (comprando 1)',
+        pts: 600,
+        icono: '👯',
+      },
+      {
+        id: 'burger_gratis',
+        nombre: 'Hamburguesa Gratis',
+        pts: 800,
+        icono: '🍔',
+      },
+    ];
+
+    // 🧠 GAMIFICACIÓN: Niveles de fidelidad
     let nivel = 'Bronce 🥉';
     if (pts >= 1500) nivel = 'Oro 👑';
     else if (pts >= 500) nivel = 'Plata 🥈';
 
     return {
       puntosActuales: pts,
-      nivelActual: nivel, // <-- Lo mandamos a la app móvil
-      progreso: {
-        bebida: {
-          alcanzado: pts >= 150,
-          faltan: pts >= 150 ? 0 : 150 - pts,
-          mensaje:
-            pts >= 150
-              ? '¡Bebida gratis desbloqueada! 🥤'
-              : `Faltan ${150 - pts} pts para bebida gratis`,
-        },
-        delivery: {
-          alcanzado: pts >= 200,
-          faltan: pts >= 200 ? 0 : 200 - pts,
-          mensaje:
-            pts >= 200
-              ? '¡Delivery gratis desbloqueado! 🚚'
-              : `Faltan ${200 - pts} pts para delivery gratis`,
-        },
-        hamburguesa: {
-          alcanzado: pts >= 800,
-          faltan: pts >= 800 ? 0 : 800 - pts,
-          mensaje:
-            pts >= 800
-              ? '¡Hamburguesa gratis desbloqueada! 🍔'
-              : `Faltan ${800 - pts} pts para burger gratis`,
-        },
-      },
+      nivelActual: nivel,
+      // Mapeamos los premios para que el frontend sepa qué mostrar
+      recompensas: listaPremios.map((p) => ({
+        id: p.id,
+        nombre: p.nombre,
+        puntosRequeridos: p.pts,
+        alcanzado: pts >= p.pts,
+        faltan: pts >= p.pts ? 0 : p.pts - pts,
+        mensaje:
+          pts >= p.pts
+            ? `¡${p.nombre} desbloqueado! ${p.icono}`
+            : `Te faltan ${p.pts - pts} pts para ${p.nombre}`,
+        icono: p.icono,
+      })),
       historial: user.pointTransactions.map((t) => ({
         id: t.id,
         puntos: t.points,
@@ -78,13 +99,11 @@ export class UsersService {
     };
   }
 
-  // 🧹 ROBOT NOCTURNO: Se ejecuta todos los días a las 3:00 AM
   @Cron('0 3 * * *')
   async cleanExpiredPoints() {
     console.log('Iniciando limpieza de puntos vencidos...');
     const now = new Date();
 
-    // 1. Buscamos puntos ganados hace más de 90 días que aún no han sido procesados
     const expiredTxs = await this.prisma.pointTransaction.findMany({
       where: { type: PointTransactionType.EARNED, expiresAt: { lte: now } },
     });
@@ -95,7 +114,6 @@ export class UsersService {
       });
 
       if (user && user.pointsBalance > 0) {
-        // Le quitamos los puntos (pero sin dejarlo en números negativos)
         const pointsToRemove = Math.min(tx.points, user.pointsBalance);
 
         await this.prisma.$transaction([
@@ -110,14 +128,12 @@ export class UsersService {
               type: PointTransactionType.EXPIRED,
             },
           }),
-          // Borramos la fecha para que el robot no la vuelva a leer mañana
           this.prisma.pointTransaction.update({
             where: { id: tx.id },
             data: { expiresAt: null },
           }),
         ]);
       } else {
-        // Si el usuario ya se gastó los puntos y tiene 0, solo marcamos la transacción como leída
         await this.prisma.pointTransaction.update({
           where: { id: tx.id },
           data: { expiresAt: null },

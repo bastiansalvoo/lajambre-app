@@ -2,7 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ForbiddenException,
+  //ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -80,46 +80,67 @@ export class OrdersService {
 
   async create(createOrderDto: CreateOrderDto, userId: number) {
     // COMENTAMOS ESTO TEMPORALMENTE PARA PODER COMPRAR DE DÍA
+    /*
     if (!this.isStoreOpen()) {
-      throw new ForbiddenException(
-        'Lajambre cerrado. Horario: Mar-Dom 18:30 a 00:00.',
-      );
+      throw new ForbiddenException('Lajambre cerrado. Horario: Mar-Dom 18:30 a 00:00.');
     }
+    */
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({ where: { id: userId } });
+      if (!user) throw new NotFoundException('Usuario no encontrado');
 
-      if (!user) {
-        throw new NotFoundException('Usuario no encontrado');
-      }
-
-      let deliveryFee = 1250;
+      let deliveryFee = 1000; // Según imagen del menú
       let pointsToUse = 0;
       let discount = 0;
 
-      // 1. Validar Canjes de Puntos
+      // 1. VALIDACIÓN DE CANJE DE PREMIOS (Reglas de Angelo)
       if (createOrderDto.rewardType) {
-        if (createOrderDto.rewardType === 'FREE_DELIVERY') {
-          if (user.pointsBalance < 200)
-            throw new BadRequestException(
-              'Puntos insuficientes para Delivery Gratis',
-            );
-          pointsToUse = 200;
-          deliveryFee = 0; // Se elimina el cobro de envío
-        } else if (createOrderDto.rewardType === 'FREE_BEVERAGE') {
-          if (user.pointsBalance < 150)
-            throw new BadRequestException(
-              'Puntos insuficientes para Bebida Gratis',
-            );
-          pointsToUse = 150;
-          discount = 1000; // Descuento directo por la bebida
-        } else if (createOrderDto.rewardType === 'FREE_BURGER') {
-          if (user.pointsBalance < 800)
-            throw new BadRequestException(
-              'Puntos insuficientes para Hamburguesa Gratis',
-            );
-          pointsToUse = 800;
-          discount = 7990; // Descuento promedio de una hamburguesa
+        const reward = createOrderDto.rewardType;
+        const rewardCosts: Record<string, number> = {
+          queso: 120,
+          bebida: 150,
+          papas: 180,
+          delivery: 200,
+          tocino: 200,
+          carne: 250,
+          dos_bebidas: 250,
+          upgrade: 300,
+          dos_por_uno: 600,
+          burger_gratis: 800,
+        };
+
+        pointsToUse = rewardCosts[reward];
+
+        if (!pointsToUse) throw new BadRequestException('Premio no válido.');
+        if (user.pointsBalance < pointsToUse) {
+          throw new BadRequestException(
+            `Puntos insuficientes. Necesitas ${pointsToUse} pts.`,
+          );
+        }
+
+        // Aplicamos el descuento monetario equivalente al premio
+        switch (reward) {
+          case 'delivery':
+            deliveryFee = 0;
+            break;
+          case 'queso':
+          case 'tocino':
+          case 'bebida':
+            discount = 1000;
+            break; // Valores base aprox
+          case 'papas':
+            discount = 1500;
+            break;
+          case 'carne':
+          case 'dos_bebidas':
+          case 'upgrade':
+            discount = 2000;
+            break;
+          case 'dos_por_uno':
+          case 'burger_gratis':
+            discount = 7990;
+            break; // Valor promedio de burger
         }
       }
 
@@ -134,6 +155,9 @@ export class OrdersService {
       });
 
       let subTotalItems = 0;
+      let hasBurger = false;
+
+      // 2. PROCESAR PRODUCTOS Y EXTRAS
       for (const item of createOrderDto.items) {
         const product = await tx.product.findUnique({
           where: { id: item.productId },
@@ -143,6 +167,9 @@ export class OrdersService {
             `Producto ${product?.name || item.productId} agotado.`,
           );
         }
+
+        // Heurística simple: Si cuesta más de $5000, asumimos que es una hamburguesa principal
+        if (product.price >= 5000) hasBurger = true;
 
         let itemTotal = product.price * item.quantity;
         const orderItem = await tx.orderItem.create({
@@ -173,11 +200,23 @@ export class OrdersService {
         subTotalItems += itemTotal;
       }
 
-      // 2. Calcular total final asegurando que no quede en negativo
+      // 3. VALIDACIÓN DE REGLA ESPECIAL (2x1 y Upgrade)
+      if (
+        createOrderDto.rewardType === 'dos_por_uno' ||
+        createOrderDto.rewardType === 'upgrade'
+      ) {
+        if (!hasBurger) {
+          throw new BadRequestException(
+            'Este premio requiere incluir al menos una hamburguesa en el pedido.',
+          );
+        }
+      }
+
+      // 4. CÁLCULO FINAL Y DESCUENTO DE PUNTOS
       let finalTotal = subTotalItems + deliveryFee - discount;
       if (finalTotal < 0) finalTotal = 0;
 
-      // 3. Descontar puntos al usuario de inmediato si usó un canje
+      // Descontamos puntos de inmediato al crear la orden PENDIENTE
       if (pointsToUse > 0) {
         await tx.user.update({
           where: { id: userId },
@@ -189,7 +228,7 @@ export class OrdersService {
             userId,
             orderId: order.id,
             points: -pointsToUse,
-            type: PointTransactionType.REDEEMED, // <-- Cambio aquí
+            type: PointTransactionType.REDEEMED,
           },
         });
       }
@@ -216,7 +255,7 @@ export class OrdersService {
       process.env.WEBPAY_RETURN_URL ||
       'http://localhost:3000/orders/webpay/confirm';
 
-    // Si el total es 0 (ej: canjeó puntos y pagó todo el pedido), podemos saltarnos Webpay
+    // Si pagó 100% con puntos
     if (order.total === 0) {
       await this.prisma.order.update({
         where: { id: order.id },
@@ -243,8 +282,6 @@ export class OrdersService {
 
   async confirmPayment(token: string) {
     if (!token) throw new BadRequestException('Token no proporcionado');
-
-    // Manejo de pedidos gratuitos (pagados 100% con puntos)
     if (token === 'GRATIS')
       return { status: 'success', message: 'Pedido gratuito por canje' };
 
@@ -264,16 +301,10 @@ export class OrdersService {
       const result = (await this.webpay.commit(token)) as WebpayCommitResponse;
 
       if (result.status === 'AUTHORIZED') {
-        // --- 4. CALCULAR Y ENTREGAR PUNTOS AL PAGAR ---
         let pointsEarned = Math.floor(order.total / 100);
-
-        // 🔥 MULTIPLICADOR PRO: Si hoy es Martes (día 2 de la semana), damos x1.5 puntos
         const hoy = new Date();
-        if (hoy.getDay() === 2) {
-          pointsEarned = Math.floor(pointsEarned * 1.5);
-        }
+        if (hoy.getDay() === 2) pointsEarned = Math.floor(pointsEarned * 1.5); // Multiplicador día Martes
 
-        // Vencimiento en 90 días
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 90);
 
@@ -297,12 +328,28 @@ export class OrdersService {
           }),
         ]);
 
-        console.log(this.generateTicket(order, pointsEarned));
         return { status: 'success', orderId: order.id };
       } else {
-        await this.prisma.order.update({
-          where: { id: order.id },
-          data: { status: 'CANCELADO' },
+        // --- DEVOLUCIÓN DE PUNTOS POR RECHAZO DE TARJETA ---
+        await this.prisma.$transaction(async (tx) => {
+          await tx.order.update({
+            where: { id: order.id },
+            data: { status: 'CANCELADO' },
+          });
+          if (order.pointsUsed > 0) {
+            await tx.user.update({
+              where: { id: order.user.id },
+              data: { pointsBalance: { increment: order.pointsUsed } },
+            });
+            await tx.pointTransaction.create({
+              data: {
+                userId: order.user.id,
+                orderId: order.id,
+                points: order.pointsUsed,
+                type: PointTransactionType.EARNED,
+              },
+            });
+          }
         });
         return { status: 'failed', orderId: order.id };
       }
@@ -310,23 +357,6 @@ export class OrdersService {
       console.error(error);
       throw new BadRequestException('Error en el pago');
     }
-  }
-
-  private generateTicket(order: OrderWithDetails, pointsEarned: number) {
-    let t = `\n--- TICKET #${order.id} ---\nCliente: ${order.user.name}\nTel: ${order.user.phone}\nDir: ${order.address || 'Local'}\n`;
-
-    if (order.rewardType)
-      t += `🎁 Canje utilizado: ${order.rewardType} (-${order.pointsUsed} pts)\n`;
-
-    order.items.forEach((i) => {
-      t += `${i.quantity}x ${i.product.name} ($${i.priceAtPurchase})\n`;
-      i.extras.forEach((e) => (t += `  + ${e.extra.name}\n`));
-    });
-    t += `Delivery: $${order.deliveryFee}\n`;
-    t += `Total a pagar: $${order.total}\n`;
-    t += `⭐ Puntos ganados en esta compra: ${pointsEarned}\n`;
-    t += `----------------\n`;
-    return t;
   }
 
   async findOne(id: number, userId: number) {
@@ -365,9 +395,29 @@ export class OrdersService {
     const o = await this.findOne(id, userId);
     if (o.status !== 'PENDIENTE')
       throw new BadRequestException('No cancelable');
-    return this.prisma.order.update({
-      where: { id },
-      data: { status: 'CANCELADO' },
+
+    // --- DEVOLUCIÓN DE PUNTOS POR CANCELACIÓN MANUAL ---
+    return this.prisma.$transaction(async (tx) => {
+      const updatedOrder = await tx.order.update({
+        where: { id },
+        data: { status: 'CANCELADO' },
+      });
+
+      if (o.pointsUsed > 0) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { pointsBalance: { increment: o.pointsUsed } },
+        });
+        await tx.pointTransaction.create({
+          data: {
+            userId: userId,
+            orderId: id,
+            points: o.pointsUsed,
+            type: PointTransactionType.EARNED,
+          },
+        });
+      }
+      return updatedOrder;
     });
   }
 }
