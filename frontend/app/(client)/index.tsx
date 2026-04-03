@@ -1,9 +1,11 @@
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Dimensions } from 'react-native';
 import Animated, { FadeInDown, FadeInRight, LinearTransition } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query'; // 👈 Importamos Query
-import { api } from '../../src/api/api'; // 👈 Tu instancia de Axios
+import { useQuery } from '@tanstack/react-query'; 
+import { api } from '../../src/api/api'; 
+// 👇 1. Importamos nuestra tienda (Zustand)
+import { useCartStore } from '../../src/store/cartStore'; 
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -13,7 +15,7 @@ const BANNER_IMAGES = [
   require('../../assets/images/menu/banner3.jpg'), 
 ];
 
-const CATEGORIES = ['Todos', 'Burgers', 'Papas/Lados', 'Bebidas'];
+const CATEGORIES = ['Todos', 'Burgers', 'Papas', 'Bebidas'];
 
 function BurgerSkeleton({ index }: { index: number }) {
   return (
@@ -31,17 +33,14 @@ export default function MenuScreen() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // 🚀 PETICIÓN REAL AL BACKEND
+  // 👇 2. Extraemos la función para agregar productos del cerebro
+  const addItem = useCartStore((state) => state.addItem);
+
   const { data: products, isLoading, isError } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      try {
-        const response = await api.get('/products');
-        return response.data;
-      } catch (error) {
-        console.error("🚨 ERROR DE CONEXIÓN AXIOS:", error); // Esto saldrá en tu terminal
-        throw error;
-      }
+      const response = await api.get('/products');
+      return response.data;
     },
   });
 
@@ -113,7 +112,7 @@ export default function MenuScreen() {
             <Text className="text-white text-xl font-bold uppercase tracking-widest">Nuestras Burgers</Text>
           </View>
 
-          {/* Grilla de Productos Real */}
+          {/* Grilla de Productos */}
           <View className="flex-row flex-wrap justify-between">
             {isLoading ? (
                 <>
@@ -134,7 +133,6 @@ export default function MenuScreen() {
                   >
                     <View className="relative">
                       <Image 
-                        // Si la imagen es una URL del backend la usamos, si no, un placeholder
                         source={burger.image ? { uri: burger.image } : require('../../assets/images/menu/bbq.jpg')} 
                         className="w-full h-44 rounded-2xl bg-neutral-900"
                         resizeMode="cover"
@@ -148,7 +146,18 @@ export default function MenuScreen() {
                       <Text className="text-white text-[13px] font-black uppercase flex-1 mr-1" numberOfLines={1}>
                         {burger.name}
                       </Text>
-                      <TouchableOpacity className="bg-yellow-500 w-7 h-7 rounded-lg items-center justify-center active:bg-yellow-600">
+                      {/* 👇 3. Conectamos el botón para que guarde los datos reales en la store */}
+                      <TouchableOpacity 
+                        className="bg-yellow-500 w-7 h-7 rounded-lg items-center justify-center active:bg-yellow-600"
+                        onPress={() => {
+                          addItem({
+                            id: burger.id,
+                            name: burger.name,
+                            price: burger.price,
+                            image: burger.image, 
+                          });
+                        }}
+                      >
                         <Text className="text-black font-bold">+</Text>
                       </TouchableOpacity>
                     </View>

@@ -3,6 +3,9 @@ import { FontAwesome } from '@expo/vector-icons';
 import { View, Text, Image } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// 👇 1. Importamos nuestra tienda (Zustand)
+import { useCartStore } from '../../src/store/cartStore';
+
 function LogoHeader() {
   return (
     <View className="flex-row items-center gap-x-3">
@@ -25,6 +28,11 @@ function LogoHeader() {
 
 function TabLayoutContent() {
   const insets = useSafeAreaInsets();
+
+  // 👇 2. Extraemos la suma total de hamburguesas en el carrito en tiempo real
+  const totalItems = useCartStore((state) => 
+    state.items.reduce((sum, item) => sum + item.quantity, 0)
+  );
 
   return (
     <Tabs
@@ -54,14 +62,14 @@ function TabLayoutContent() {
         }} 
       />
       
-      {/* 🛒 AQUÍ EL CAMBIO: Agregamos tabBarBadge y su estilo */}
       <Tabs.Screen 
         name="cart" 
         options={{ 
-          headerTitle: () => <LogoHeader />, // Reutilizamos el logo arriba
+          headerTitle: () => <LogoHeader />,
           tabBarLabel: 'Carrito', 
           tabBarIcon: ({ color }) => <FontAwesome name="shopping-cart" size={24} color={color} />,
-          tabBarBadge: 3, // <--- MOCK: Número falso temporal
+          // 👇 3. Reemplazamos el "3" fijo. Si el total es 0, ocultamos la burbuja (undefined).
+          tabBarBadge: totalItems > 0 ? totalItems : undefined,
           tabBarBadgeStyle: { backgroundColor: '#EAB308', color: '#000000', fontWeight: 'bold' } 
         }} 
       />
