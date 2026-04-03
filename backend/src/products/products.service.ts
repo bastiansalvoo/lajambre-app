@@ -8,9 +8,12 @@ export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll() {
-    return await this.prisma.product.findMany({
-      include: { category: true },
-    });
+    const products = await this.prisma.product.findMany();
+    return products.map((p) => ({
+      ...p,
+      // Generamos la URL dinámica para que el celular la pueda descargar
+      image: p.image ? `http://10.62.141.246:3000/uploads/${p.image}` : null,
+    }));
   }
 
   async findOne(id: number) {

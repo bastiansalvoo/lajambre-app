@@ -6,11 +6,17 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 import "../global.css";
 
+// 👇 1. Importamos las herramientas de React Query
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
 export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
   initialRouteName: '(client)',
 };
+
+// 👇 2. Creamos la instancia del cliente (el gestor de la caché)
+const queryClient = new QueryClient();
 
 SplashScreen.preventAutoHideAsync();
 
@@ -35,12 +41,15 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack>
-      <Stack.Screen name="(client)" options={{ headerShown: false }} />
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(admin)" options={{ headerShown: false }} />
-      <Stack.Screen name="webpay-result" options={{ title: 'Resultado del Pago' }} />
-      <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
-    </Stack>
+    // 👇 3. Envolvemos toda la app con el Provider de Query
+    <QueryClientProvider client={queryClient}>
+      <Stack>
+        <Stack.Screen name="(client)" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+        <Stack.Screen name="webpay-result" options={{ title: 'Resultado del Pago' }} />
+        <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
+      </Stack>
+    </QueryClientProvider>
   );
 }
