@@ -12,7 +12,7 @@ export class ProductsService {
     return products.map((p) => ({
       ...p,
       // Generamos la URL dinámica para que el celular la pueda descargar
-      image: p.image ? `http://10.62.141.246:3000/uploads/${p.image}` : null,
+      image: p.image ? `http://172.25.154.246:3000/uploads/${p.image}` : null,
     }));
   }
 
@@ -27,11 +27,10 @@ export class ProductsService {
   }
 
   async updateImage(id: number, fileName: string) {
-    const imageUrl = `http://localhost:3000/uploads/${fileName}`;
-
+    // 👇 Guardamos SOLO el nombre del archivo en Prisma (ej: product-123.jpg)
     return this.prisma.product.update({
       where: { id },
-      data: { image: imageUrl },
+      data: { image: fileName },
     });
   }
 

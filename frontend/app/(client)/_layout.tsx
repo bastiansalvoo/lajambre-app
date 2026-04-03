@@ -1,19 +1,27 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router'; // 👈 Agregamos useRouter aquí
 import { FontAwesome } from '@expo/vector-icons';
-import { View, Text, Image } from 'react-native';
+import { View, Text, Image, TouchableOpacity } from 'react-native'; // 👈 Agregamos TouchableOpacity
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// 👇 1. Importamos nuestra tienda (Zustand)
 import { useCartStore } from '../../src/store/cartStore';
 
 function LogoHeader() {
+  const router = useRouter(); // 👈 Inicializamos el router
+
   return (
     <View className="flex-row items-center gap-x-3">
-      <Image
-        source={require('../../assets/images/menu/logo.png')}
-        className="w-11 h-11"
-        resizeMode="contain"
-      />
+      {/* 👇 Convertimos la imagen en un botón secreto hacia el Admin */}
+      <TouchableOpacity 
+        onPress={() => router.push('/(admin)/dashboard')}
+        activeOpacity={0.7}
+      >
+        <Image
+          source={require('../../assets/images/menu/logo.png')}
+          className="w-11 h-11"
+          resizeMode="contain"
+        />
+      </TouchableOpacity>
+      
        <View className="flex-col justify-center">
         <Text className="text-yellow-500 text-xl font-black uppercase tracking-tight">
           Lajambre
@@ -28,8 +36,6 @@ function LogoHeader() {
 
 function TabLayoutContent() {
   const insets = useSafeAreaInsets();
-
-  // 👇 2. Extraemos la suma total de hamburguesas en el carrito en tiempo real
   const totalItems = useCartStore((state) => 
     state.items.reduce((sum, item) => sum + item.quantity, 0)
   );
@@ -68,7 +74,6 @@ function TabLayoutContent() {
           headerTitle: () => <LogoHeader />,
           tabBarLabel: 'Carrito', 
           tabBarIcon: ({ color }) => <FontAwesome name="shopping-cart" size={24} color={color} />,
-          // 👇 3. Reemplazamos el "3" fijo. Si el total es 0, ocultamos la burbuja (undefined).
           tabBarBadge: totalItems > 0 ? totalItems : undefined,
           tabBarBadgeStyle: { backgroundColor: '#EAB308', color: '#000000', fontWeight: 'bold' } 
         }} 

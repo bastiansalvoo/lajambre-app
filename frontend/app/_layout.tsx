@@ -12,7 +12,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
-  initialRouteName: '(client)',
+  initialRouteName: '(admin)',
 };
 
 // 👇 2. Creamos la instancia del cliente (el gestor de la caché)
