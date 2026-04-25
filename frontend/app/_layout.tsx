@@ -6,16 +6,15 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 import "../global.css";
 
-// 👇 1. Importamos las herramientas de React Query
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 export { ErrorBoundary } from 'expo-router';
 
+// 👇 1. Cambiamos esto a 'index' (la raíz)
 export const unstable_settings = {
-  initialRouteName: '(admin)',
+  initialRouteName: 'index',
 };
 
-// 👇 2. Creamos la instancia del cliente (el gestor de la caché)
 const queryClient = new QueryClient();
 
 SplashScreen.preventAutoHideAsync();
@@ -41,9 +40,10 @@ export default function RootLayout() {
   }
 
   return (
-    // 👇 3. Envolvemos toda la app con el Provider de Query
     <QueryClientProvider client={queryClient}>
       <Stack>
+        {/* 👇 2. Agregamos el index explícitamente para que Expo no lo ignore */}
+        <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(client)" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(admin)" options={{ headerShown: false }} />

@@ -1,18 +1,35 @@
-import { Tabs, useRouter } from 'expo-router'; // 👈 Agregamos useRouter aquí
+import { Tabs, useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
-import { View, Text, Image, TouchableOpacity } from 'react-native'; // 👈 Agregamos TouchableOpacity
+import { View, Text, Image, TouchableOpacity, Alert } from 'react-native'; // <-- Añade Alert
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as SecureStore from 'expo-secure-store'; // <-- Importante: Importar la bóveda
 
 import { useCartStore } from '../../src/store/cartStore';
 
 function LogoHeader() {
-  const router = useRouter(); // 👈 Inicializamos el router
+  const router = useRouter();
+
+  // 👇 El Guardia del Botón Secreto
+  const handleAdminAccess = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (token) {
+        // Si tiene llave, lo dejamos pasar al panel
+        router.push('/(admin)/dashboard');
+      } else {
+        // Si no tiene llave, lo mandamos al login (o le decimos que no puede)
+        router.push('/(auth)/login');
+      }
+    } catch (error) {
+      console.error("Error revisando credenciales:", error);
+    }
+  };
 
   return (
     <View className="flex-row items-center gap-x-3">
-      {/* 👇 Convertimos la imagen en un botón secreto hacia el Admin */}
+      {/* Botón secreto protegido */}
       <TouchableOpacity 
-        onPress={() => router.push('/(admin)/dashboard')}
+        onPress={handleAdminAccess} 
         activeOpacity={0.7}
       >
         <Image

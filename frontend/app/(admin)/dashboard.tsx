@@ -1,20 +1,65 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import { api } from '../../src/api/api';
 
 export default function DashboardScreen() {
   const router = useRouter();
 
+  // 👇 Lógica de Logout
+  const handleLogout = async () => {
+    Alert.alert(
+      "Cerrar Sesión",
+      "¿Estás seguro que deseas salir del panel de administración?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Sí, salir", 
+          style: "destructive",
+          onPress: async () => {
+    try {
+      // 1. Borramos la llave de la bóveda
+      await SecureStore.deleteItemAsync('userToken');
+      
+      // 2. Le quitamos la llave a Axios
+      delete api.defaults.headers.common['Authorization'];
+      
+      // 3. 👇 Lo mandamos a la pantalla de Login en lugar de /(client)
+      router.replace('/(auth)/login');
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+    }
+  }
+        }
+      ]
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-neutral-950 px-6 pt-6" edges={['left', 'right', 'bottom']}>
       
-      <Text className="text-white text-3xl font-black uppercase tracking-widest mb-2">
-        Resumen
-      </Text>
-      <Text className="text-neutral-400 mb-8 text-base">
-        ¿Qué te gustaría gestionar hoy en Lajambre?
-      </Text>
+      {/* HEADER CON BOTÓN DE LOGOUT */}
+      <View className="flex-row justify-between items-start mb-8">
+        <View>
+          <Text className="text-white text-3xl font-black uppercase tracking-widest mb-2">
+            Resumen
+          </Text>
+          <Text className="text-neutral-400 text-base">
+            ¿Qué te gustaría gestionar hoy en Lajambre?
+          </Text>
+        </View>
+
+        {/* 👇 Botón de Salida */}
+        <TouchableOpacity 
+          onPress={handleLogout}
+          className="bg-neutral-900 border border-neutral-800 w-12 h-12 rounded-xl items-center justify-center active:bg-neutral-800"
+        >
+          <FontAwesome name="sign-out" size={20} color="#EF4444" />
+        </TouchableOpacity>
+      </View>
 
       {/* 🍔 Botón hacia el Gestor de Menú (Operativo) */}
       <TouchableOpacity
