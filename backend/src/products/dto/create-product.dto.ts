@@ -1,18 +1,28 @@
-import { IsString, IsNumber, IsBoolean, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsBoolean,
+  IsOptional,
+  IsNotEmpty,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateProductDto {
   @IsString()
-  name: string;
+  @IsNotEmpty()
+  name!: string; // El ! quita el error de inicialización
 
   @IsString()
-  // Quitamos el @IsOptional() y el signo de interrogación (?)
-  description: string;
+  @IsNotEmpty()
+  description!: string;
 
+  @Type(() => Number) // <--- CRÍTICO: Convierte "8990" de FormData a número real
   @IsNumber()
-  price: number;
+  price!: number;
 
+  @Type(() => Number) // <--- CRÍTICO: Convierte "1" de FormData a número real
   @IsNumber()
-  categoryId: number;
+  categoryId!: number;
 
   @IsBoolean()
   @IsOptional()

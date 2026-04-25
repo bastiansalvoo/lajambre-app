@@ -35,9 +35,9 @@ export class ProductsService {
   }
 
   // Conectado a BD: Creación real de la hamburguesa
-  async create(createProductDto: CreateProductDto) {
+  async create(data: CreateProductDto & { image?: string | null }) {
     return await this.prisma.product.create({
-      data: createProductDto,
+      data: data, // Ahora TS sabe que 'data' es seguro y usa el DTO
     });
   }
 
