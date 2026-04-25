@@ -6,8 +6,20 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { OrderStatus, PointTransactionType } from '@prisma/client';
+import { OrderStatus, PointTransactionType, Prisma } from '@prisma/client';
 import { WebpayService } from './webpay.service';
+
+export type OrderWithDetails = Prisma.OrderGetPayload<{
+  include: {
+    user: true;
+    items: {
+      include: {
+        product: true;
+        extras: { include: { extra: true } };
+      };
+    };
+  };
+}>;
 
 export interface WebpayCreateResponse {
   token: string;
@@ -18,27 +30,6 @@ export interface WebpayCommitResponse {
   vci?: string;
   amount?: number;
   buy_order?: string;
-}
-
-interface OrderWithDetails {
-  id: number;
-  createdAt: Date;
-  address: string | null;
-  total: number;
-  deliveryFee: number;
-  pointsEarned: number;
-  pointsUsed: number;
-  rewardType: string | null;
-  user: { id: number; name: string; phone: string; pointsBalance: number };
-  items: Array<{
-    quantity: number;
-    priceAtPurchase: number;
-    product: { name: string };
-    extras: Array<{
-      priceAtPurchase: number;
-      extra: { name: string };
-    }>;
-  }>;
 }
 
 @Injectable()
@@ -90,65 +81,71 @@ export class OrdersService {
       const user = await tx.user.findUnique({ where: { id: userId } });
       if (!user) throw new NotFoundException('Usuario no encontrado');
 
-      let deliveryFee = 1000; // Según imagen del menú
+      let deliveryFee = 1250;
       let pointsToUse = 0;
       let discount = 0;
 
-      // 1. VALIDACIÓN DE CANJE DE PREMIOS (Reglas de Angelo)
       if (createOrderDto.rewardType) {
         const reward = createOrderDto.rewardType;
+        // UNIFICADO: Llaves en mayúsculas como el DTO
         const rewardCosts: Record<string, number> = {
-          queso: 120,
-          bebida: 150,
-          papas: 180,
-          delivery: 200,
-          tocino: 200,
-          carne: 250,
-          dos_bebidas: 250,
-          upgrade: 300,
-          dos_por_uno: 600,
-          burger_gratis: 800,
+          QUESO_GRATIS: 120,
+          BEBIDA_GRATIS: 150,
+          PAPAS_GRATIS: 180,
+          DELIVERY_GRATIS: 200,
+          TOCINO_GRATIS: 200,
+          CARNE_EXTRA: 250,
+          DOS_BEBIDAS: 250,
+          UPGRADE_BURGER: 300,
+          DOS_POR_UNO: 600,
+          BURGER_GRATIS: 800,
         };
 
         pointsToUse = rewardCosts[reward];
 
         if (!pointsToUse) throw new BadRequestException('Premio no válido.');
+
+        // 👇 AGREGA ESTO SI NO ESTÁ:
         if (user.pointsBalance < pointsToUse) {
           throw new BadRequestException(
-            `Puntos insuficientes. Necesitas ${pointsToUse} pts.`,
+            `Puntos insuficientes. Tienes ${user.pointsBalance} y necesitas ${pointsToUse} pts.`,
           );
         }
 
-        // Aplicamos el descuento monetario equivalente al premio
+        // ... (validación de puntos igual)
+
         switch (reward) {
-          case 'delivery':
+          case 'DELIVERY_GRATIS':
             deliveryFee = 0;
             break;
-          case 'queso':
-          case 'tocino':
-          case 'bebida':
+          case 'QUESO_GRATIS':
+          case 'TOCINO_GRATIS':
+          case 'BEBIDA_GRATIS':
             discount = 1000;
-            break; // Valores base aprox
-          case 'papas':
-            discount = 1500;
             break;
-          case 'carne':
-          case 'dos_bebidas':
-          case 'upgrade':
+          case 'PAPAS_GRATIS':
+            discount = 2500;
+            break; // Valor papas rústicas
+          case 'CARNE_EXTRA':
+          case 'DOS_BEBIDAS':
+          case 'UPGRADE_BURGER':
             discount = 2000;
             break;
-          case 'dos_por_uno':
-          case 'burger_gratis':
-            discount = 7990;
-            break; // Valor promedio de burger
+          case 'DOS_POR_UNO':
+          case 'BURGER_GRATIS':
+            discount = 8490;
+            break; // Valor promedio
         }
       }
 
+      // AHORA SÍ GUARDAMOS LOS CAMPOS NUEVOS
       const order = await tx.order.create({
         data: {
           userId,
           total: 0,
           deliveryFee,
+          deliveryAddress: createOrderDto.deliveryAddress, // <--- GUARDADO
+          contactPhone: createOrderDto.contactPhone, // <--- GUARDADO
           rewardType: createOrderDto.rewardType,
           pointsUsed: pointsToUse,
         },
@@ -200,14 +197,14 @@ export class OrdersService {
         subTotalItems += itemTotal;
       }
 
-      // 3. VALIDACIÓN DE REGLA ESPECIAL (2x1 y Upgrade)
+      // 3. VALIDACIÓN DE REGLA ESPECIAL (DOS_POR_UNO y UPGRADE_BURGER)
       if (
-        createOrderDto.rewardType === 'dos_por_uno' ||
-        createOrderDto.rewardType === 'upgrade'
+        createOrderDto.rewardType === 'DOS_POR_UNO' || // <--- CAMBIADO A MAYÚSCULAS
+        createOrderDto.rewardType === 'UPGRADE_BURGER' // <--- CAMBIADO A MAYÚSCULAS
       ) {
         if (!hasBurger) {
           throw new BadRequestException(
-            'Este premio requiere incluir al menos una hamburguesa en el pedido.',
+            'Este premio requiere incluir al menos una hamburguesa.',
           );
         }
       }
@@ -282,9 +279,9 @@ export class OrdersService {
 
   async confirmPayment(token: string) {
     if (!token) throw new BadRequestException('Token no proporcionado');
-    if (token === 'GRATIS')
-      return { status: 'success', message: 'Pedido gratuito por canje' };
+    if (token === 'GRATIS') return { status: 'success' };
 
+    // Tipado seguro desde la consulta
     const order = (await this.prisma.order.findFirst({
       where: { sessionId: token },
       include: {
@@ -293,7 +290,7 @@ export class OrdersService {
           include: { product: true, extras: { include: { extra: true } } },
         },
       },
-    })) as unknown as OrderWithDetails;
+    })) as OrderWithDetails | null; // El casting es directo ahora
 
     if (!order) throw new NotFoundException('Token no reconocido');
 
@@ -382,7 +379,15 @@ export class OrdersService {
 
   async findAllForAdmin() {
     return this.prisma.order.findMany({
-      include: { user: true },
+      include: {
+        user: true,
+        items: {
+          include: {
+            product: true,
+            extras: { include: { extra: true } },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

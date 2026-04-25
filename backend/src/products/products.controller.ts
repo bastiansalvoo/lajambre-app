@@ -38,7 +38,7 @@ export class ProductsController {
   @Patch(':id/image')
   // 👇 COMENTAMOS LOS GUARDIAS TEMPORALMENTE HASTA QUE HAGAMOS EL LOGIN
   // @UseGuards(AuthGuard('jwt'), RolesGuard)
-  // @Roles('ADMIN')
+  @Roles('ADMIN')
   @UseInterceptors(
     FileInterceptor('image', {
       // <-- El backend espera la etiqueta 'image'

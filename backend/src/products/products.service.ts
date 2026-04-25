@@ -12,7 +12,7 @@ export class ProductsService {
     return products.map((p) => ({
       ...p,
       // Generamos la URL dinámica para que el celular la pueda descargar
-      image: p.image ? `http://172.25.154.246:3000/uploads/${p.image}` : null,
+      image: p.image ? `http://192.168.1.14:3000/uploads/${p.image}` : null,
     }));
   }
 

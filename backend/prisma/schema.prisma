@@ -74,20 +74,23 @@ model Extra {
 }
 
 model Order {
-  id          Int         @id @default(autoincrement())
-  user        User        @relation(fields: [userId], references: [id])
-  userId      Int
-  status      OrderStatus @default(PENDIENTE)
-  total       Int
-  deliveryFee Int         @default(1250)
+  id           Int         @id @default(autoincrement())
+  user         User        @relation(fields: [userId], references: [id])
+  userId       Int
+  status       OrderStatus @default(PENDIENTE)
+  total        Int
+  deliveryFee  Int         @default(1250)
 
-  // --- SISTEMA DE PUNTOS ---
+  // --- NUEVOS CAMPOS ---
+  deliveryAddress String?   // Para guardar dónde se entregó físicamente
+  contactPhone    String?   // Para el repartidor
+  // ---------------------
+
   pointsEarned      Int                @default(0)
   pointsUsed        Int                @default(0)
-  rewardType        String? // Ej: 'FREE_DELIVERY', 'FREE_BEVERAGE', 'FREE_BURGER'
+  rewardType        String? 
   pointTransactions PointTransaction[]
 
-  // Campos Webpay Plus
   buyOrder  String? @unique
   sessionId String?
 

@@ -10,10 +10,10 @@ import { Type } from 'class-transformer';
 
 class OrderItemDto {
   @IsNumber()
-  productId: number;
+  productId!: number; // Agregamos ! para quitar el error rojo
 
   @IsNumber()
-  quantity: number;
+  quantity!: number;
 
   @IsOptional()
   @IsArray()
@@ -25,17 +25,27 @@ export class CreateOrderDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => OrderItemDto)
-  items: OrderItemDto[];
+  items!: OrderItemDto[];
 
   @IsString()
-  address: string;
+  deliveryAddress!: string; // Renombrado para consistencia con DB
 
   @IsString()
-  phone: string;
+  contactPhone!: string; // Renombrado para consistencia con DB
 
-  // --- NUEVO: SISTEMA DE PUNTOS ---
   @IsOptional()
   @IsString()
-  @IsIn(['FREE_DELIVERY', 'FREE_BEVERAGE', 'FREE_BURGER'])
+  @IsIn([
+    'QUESO_GRATIS',
+    'BEBIDA_GRATIS',
+    'PAPAS_GRATIS',
+    'DELIVERY_GRATIS',
+    'TOCINO_GRATIS',
+    'CARNE_EXTRA',
+    'DOS_BEBIDAS',
+    'UPGRADE_BURGER',
+    'DOS_POR_UNO',
+    'BURGER_GRATIS',
+  ])
   rewardType?: string;
 }
