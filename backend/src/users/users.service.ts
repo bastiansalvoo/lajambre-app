@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
 import { Prisma, PointTransactionType } from '@prisma/client';
 import { Cron } from '@nestjs/schedule';
+import * as crypto from 'crypto'; // <-- Importar la librería nativa de Node para crear códigos seguros
 
 @Injectable()
 export class UsersService {
@@ -11,8 +12,18 @@ export class UsersService {
   async create(data: Prisma.UserCreateInput) {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(data.password, salt);
+
+    // 👇 Generamos un código secreto de 40 letras/números
+    const verificationToken = crypto.randomBytes(20).toString('hex');
+
+    // Guardamos al usuario "congelado" y con el código secreto
     return this.prisma.user.create({
-      data: { ...data, password: hashedPassword },
+      data: {
+        ...data,
+        password: hashedPassword,
+        isVerified: false,
+        verificationToken: verificationToken,
+      },
     });
   }
 

@@ -30,21 +30,25 @@ enum PointTransactionType {
 // --- MODELOS DE DATOS ---
 
 model User {
-  id       Int     @id @default(autoincrement())
-  email    String  @unique
-  password String
-  name     String
-  phone    String
-  address  String?
-  role     Role    @default(USER)
-  orders   Order[]
+  id                Int       @id @default(autoincrement())
+  email             String    @unique
+  password          String
+  name              String
+  phone             String
+  address           String?
+  role              Role      @default(USER)
+  orders            Order[]
 
   // --- SISTEMA DE PUNTOS ---
   pointsBalance     Int                @default(0)
   pointTransactions PointTransaction[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // --- SISTEMA DE VERIFICACIÓN ---
+  isVerified        Boolean   @default(false)
+  verificationToken String?   // Guardará el código secreto temporal
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 model Category {
