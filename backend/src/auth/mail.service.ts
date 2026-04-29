@@ -10,8 +10,8 @@ export class MailService {
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'tu_correo_de_prueba@gmail.com',
-        pass: 'tu_contraseña_de_aplicacion',
+        user: 'dev.lajambre@gmail.com',
+        pass: 'xzyfzfirwzxpxljq', // La que generaste en Google
       },
     });
   }

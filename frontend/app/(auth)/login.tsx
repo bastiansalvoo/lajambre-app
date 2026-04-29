@@ -22,20 +22,38 @@ export default function LoginScreen() {
     try {
       // 1. Pedimos permiso al backend
       const response = await api.post('/auth/login', { email, password });
-      const token = response.data.access_token; // Ajusta 'access_token' si tu backend devuelve otra propiedad
+      const token = response.data.access_token; 
+      const userRole = response.data.user.role; // Extraemos el rol de la respuesta
 
-      // 2. Guardamos la "llave" en la bóveda del celular
+      // 2. Guardamos la "llave" y el "rol" en la bóveda del celular
       await SecureStore.setItemAsync('userToken', token);
+      await SecureStore.setItemAsync('userRole', userRole); // <-- GUARDAMOS EL ROL AQUÍ
 
-      // 3. Le pasamos la llave a Axios para que la use en TODAS las futuras peticiones
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      // 4. ¡Bienvenido Admin! Redirigimos al panel
-      router.replace('/(admin)/dashboard');
+      // 4. Leemos el rol y decidimos a dónde mandarlo
+      if (userRole === 'ADMIN') {
+        router.replace('/(admin)/dashboard'); // Angelo va a la cocina
+      } else {
+        router.replace('/(client)'); // El cliente normal vuelve a la tienda
+      }
 
     } catch (error: any) {
       console.error("Error de Login:", error);
-      Alert.alert('Acceso Denegado', 'Credenciales incorrectas. Intenta de nuevo.');
+      
+      // Capturamos el mensaje exacto de NestJS (Ej: "Credenciales incorrectas")
+      const msg = error.response?.data?.message || "Ocurrió un error al intentar acceder.";
+      const finalMsg = Array.isArray(msg) ? msg[0] : msg;
+
+      // Mostramos una alerta inteligente ofreciendo ir al registro
+      Alert.alert(
+        'Acceso Denegado', 
+        `${finalMsg}\n\n¿No tienes una cuenta en La Jambre?`,
+        [
+          { text: 'Intentar de nuevo', style: 'cancel' },
+          { text: 'Registrarme', onPress: () => router.replace('/(auth)/register') }
+        ]
+      );
     } finally {
       setIsLoading(false);
     }
@@ -69,7 +87,7 @@ export default function LoginScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
             className="bg-neutral-900 border border-neutral-800 text-white p-4 rounded-xl font-bold"
-            placeholder="admin@lajambre.cl"
+            placeholder="tu@correo.com"
             placeholderTextColor="#525252"
           />
         </View>
@@ -96,6 +114,15 @@ export default function LoginScreen() {
           ) : (
             <Text className="text-black font-black uppercase text-lg">Iniciar Sesión</Text>
           )}
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          onPress={() => router.replace('/(auth)/register')}
+          className="mt-6 items-center"
+        >
+          <Text className="text-neutral-500 font-bold uppercase text-[10px] tracking-widest">
+            ¿No tienes cuenta? <Text className="text-yellow-500">Regístrate aquí</Text>
+          </Text>
         </TouchableOpacity>
       </View>
 
