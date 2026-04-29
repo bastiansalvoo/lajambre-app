@@ -1,9 +1,8 @@
 import { Tabs, useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
-import { View, Text, Image, TouchableOpacity, Alert } from 'react-native'; // <-- Añade Alert
+import { View, Text, Image, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as SecureStore from 'expo-secure-store'; // <-- Importante: Importar la bóveda
-
+import * as SecureStore from 'expo-secure-store';
 import { useCartStore } from '../../src/store/cartStore';
 
 function LogoHeader() {
@@ -17,7 +16,7 @@ function LogoHeader() {
         // Si tiene llave, lo dejamos pasar al panel
         router.push('/(admin)/dashboard');
       } else {
-        // Si no tiene llave, lo mandamos al login (o le decimos que no puede)
+        // Si no tiene llave, lo mandamos al login
         router.push('/(auth)/login');
       }
     } catch (error) {
@@ -74,12 +73,13 @@ function TabLayoutContent() {
           shadowOpacity: 0, 
         },
         headerTitleAlign: 'center',
+        // 👇 Aplicamos el LogoHeader a TODAS las pestañas
+        headerTitle: () => <LogoHeader />,
       }}>
       
       <Tabs.Screen 
         name="index" 
         options={{ 
-          headerTitle: () => <LogoHeader />,
           tabBarLabel: 'Menú', 
           tabBarIcon: ({ color }) => <FontAwesome name="cutlery" size={24} color={color} /> 
         }} 
@@ -88,7 +88,6 @@ function TabLayoutContent() {
       <Tabs.Screen 
         name="cart" 
         options={{ 
-          headerTitle: () => <LogoHeader />,
           tabBarLabel: 'Carrito', 
           tabBarIcon: ({ color }) => <FontAwesome name="shopping-cart" size={24} color={color} />,
           tabBarBadge: totalItems > 0 ? totalItems : undefined,
@@ -96,8 +95,21 @@ function TabLayoutContent() {
         }} 
       />
       
-      <Tabs.Screen name="orders" options={{ title: 'Mis Pedidos', tabBarIcon: ({ color }) => <FontAwesome name="list-alt" size={24} color={color} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Perfil', tabBarIcon: ({ color }) => <FontAwesome name="user" size={24} color={color} /> }} />
+      <Tabs.Screen 
+        name="orders" 
+        options={{ 
+          tabBarLabel: 'Mis Pedidos', 
+          tabBarIcon: ({ color }) => <FontAwesome name="list-alt" size={24} color={color} /> 
+        }} 
+      />
+      
+      <Tabs.Screen 
+        name="profile" 
+        options={{ 
+          tabBarLabel: 'Perfil', 
+          tabBarIcon: ({ color }) => <FontAwesome name="user" size={24} color={color} /> 
+        }} 
+      />
     </Tabs>
   );
 }

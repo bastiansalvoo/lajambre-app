@@ -1,592 +1,219 @@
-RESUMEN SUPER COMPLETO DEL PROYECTO LAJAMBRE APP
-Fecha de revisión: 25-04-2026
-
-==================================================
-1) VISTA GENERAL DEL PROYECTO
-==================================================
-
-El proyecto está dividido en dos aplicaciones principales:
-
-1. Backend en NestJS + Prisma + PostgreSQL.
-2. Frontend móvil/web en Expo Router + React Native + NativeWind.
-
-Idea funcional del negocio:
-- App de hamburguesería con catálogo de productos.
-- Carrito de compra.
-- Sistema de usuarios con autenticación JWT.
-- Sistema de pedidos.
-- Integración de pago con Webpay Plus (Transbank).
-- Sistema de fidelización por puntos y recompensas.
-- Vista/flujo administrativo para gestionar menú.
-
-Estado macro actual:
-- Backend: muy avanzado y con mucha lógica de negocio ya implementada.
-- Frontend: base visual y navegación bastante avanzadas, pero varios flujos críticos aún en construcción (auth real, checkout real, historial y perfil, resultado de Webpay).
-
-
-==================================================
-2) BACKEND - ESTADO DETALLADO
-==================================================
-
-2.1 Stack y configuración general
-
-- Framework: NestJS 11.
-- ORM: Prisma 7.
-- DB: PostgreSQL (con docker-compose para levantar instancia local).
-- Auth: JWT + Passport.
-- Validación: class-validator/class-transformer + ValidationPipe global.
-- Tareas programadas: @nestjs/schedule (cron).
-- Pagos: transbank-sdk (Webpay Plus).
-- CORS habilitado.
-- Static files: carpeta uploads expuesta públicamente por /uploads.
-
-Observaciones clave:
-- Se usa Prisma con driver adapter pg (PrismaPg + Pool de pg) en lugar de conexión simple directa.
-- App escuchando en 0.0.0.0:3000.
-
-
-2.2 Modelo de datos (Prisma)
-
-Entidades y relaciones implementadas:
-
-- User
-	- Datos base: email único, password hash, name, phone, address opcional, role (USER/ADMIN).
-	- Relación con pedidos.
-	- Sistema de puntos: pointsBalance + historial pointTransactions.
-
-- Category
-	- Categorías de productos.
-
-- Product
-	- name, description, price, image opcional, isAvailable.
-	- Relación con category.
-	- Relación con orderItems.
-
-- Extra
-	- name, price, isAvailable.
-	- Relación con orderItemExtras.
-
-- Order
-	- userId, status (PENDIENTE/PAGADO/EN_CAMINO/ENTREGADO/CANCELADO), total, deliveryFee.
-	- Campos de puntos: pointsEarned, pointsUsed, rewardType.
-	- Campos Webpay: buyOrder, sessionId.
-	- Relación con items y pointTransactions.
-
-- OrderItem
-	- productId, quantity, priceAtPurchase.
-
-- OrderItemExtra
-	- extraId, priceAtPurchase.
-
-- PointTransaction
-	- userId, orderId opcional, points (+/-), type (EARNED/REDEEMED/EXPIRED), expiresAt.
-
-Conclusión modelo de datos:
-- Está bien pensado y bastante completo para operación real (catálogo + ventas + fidelización + trazabilidad).
-
-
-2.3 Módulos del backend
-
-Módulos activos en AppModule:
-- AuthModule
-- UsersModule
-- ProductsModule
-- OrdersModule
-- ExtrasModule
-
-Además:
-- ConfigModule global.
-- ScheduleModule global (cron habilitado).
-
-
-2.4 Autenticación y autorización
-
-Lo implementado:
-- Registro de usuario vía /auth/register.
-- Login vía /auth/login.
-- Hash de password con bcrypt.
-- JWT con payload (sub/email/role).
-- Strategy JWT para validar token Bearer.
-- Guard JWT reutilizable.
-- RolesGuard para restringir rutas de administrador.
-
-Endpoints auth relevantes:
-- POST /auth/register
-- POST /auth/login
-- GET /auth/perfil (protegido)
-- GET /auth/recompensas (protegido, trae estado de puntos/premios)
-
-Conclusión auth:
-- Backend auth sí está funcionalmente armado.
-
-
-2.5 Usuarios y sistema de fidelización
-
-Lo fuerte aquí:
-- usersService.create crea usuario con hash.
-- getRewardsInfo arma respuesta rica para frontend:
-	- puntos actuales,
-	- nivel de fidelidad (Bronce/Plata/Oro),
-	- catálogo de premios con estado alcanzado/faltante,
-	- historial reciente de movimientos.
-
-Premios implementados (lógica negocio):
-- queso, bebida, papas, delivery, tocino, carne, dos_bebidas, upgrade, dos_por_uno, burger_gratis.
-
-Automatización importante:
-- Cron diario 03:00 para limpiar puntos vencidos.
-- Cuando expiran puntos, se descuenta balance, se registra transacción EXPIRED y se marca transacción original para no reprocesar.
-
-Conclusión fidelización:
-- Muy avanzado y con comportamiento realista para producción.
-
-
-2.6 Productos
-
-Implementado:
-- CRUD de productos.
-- Endpoint para subir/actualizar imagen con multer (diskStorage a uploads/).
-- Validación de tipo de imagen y límite de tamaño (2MB).
-- Protección ADMIN en create/update/delete.
-- findAll devuelve imagen como URL completa para consumo móvil.
-
-Endpoints:
-- POST /products (admin)
-- PATCH /products/:id/image (actualmente con guardias comentados)
-- GET /products
-- GET /products/:id
-- PATCH /products/:id (admin)
-- DELETE /products/:id (admin)
-
-Conclusión productos:
-- Lógica prácticamente lista, con un ajuste pendiente de seguridad en upload (guardias comentados temporalmente).
-
-
-2.7 Extras
-
-Implementado:
-- Crear extra (admin).
-- Listar extras.
-- Cambiar disponibilidad de extra (admin).
-
-Endpoints:
-- POST /extras
-- GET /extras
-- PATCH /extras/:id
-
-Conclusión extras:
-- Funcional para operación básica.
-
-
-2.8 Pedidos y pagos (núcleo de negocio)
-
-Esta parte está bastante robusta.
-
-Pedido (create):
-- Crea orden dentro de transacción.
-- Valida usuario existente.
-- Procesa productos y extras con validación de disponibilidad.
-- Calcula subtotal + delivery + descuentos por recompensa.
-- Controla reglas especiales (ej: premios que requieren hamburguesa).
-- Descuenta puntos al momento de crear pedido si hubo canje.
-- Registra transacción de puntos REDEEMED.
-
-Pago (startPayment):
-- Valida que orden esté PENDIENTE.
-- Si total = 0 (pagado por canje), marca PAGADO y retorna flujo gratuito.
-- Si total > 0, crea transacción Webpay, guarda buyOrder/sessionId y retorna token/url.
-
-Confirmación (confirmPayment):
-- Confirma token con Webpay.
-- Si autorizado:
-	- marca orden PAGADO,
-	- calcula puntos ganados (con multiplicador martes),
-	- suma puntos al usuario,
-	- registra transacción EARNED con vencimiento a 90 días.
-- Si rechazado:
-	- marca orden CANCELADO,
-	- devuelve puntos previamente canjeados,
-	- registra transacción compensatoria.
-
-Gestión de pedidos:
-- Listado por usuario.
-- Listado global admin.
-- Obtener detalle por id validando ownership.
-- Cambio de estado (admin).
-- Cancelación manual con devolución de puntos.
-
-Conclusión pedidos/pagos:
-- Aquí está gran parte de la “inteligencia” del sistema y está implementada.
-
-
-2.9 Seed, migraciones e infraestructura
-
-- Hay seed funcional que limpia tablas y carga productos base de hamburguesas.
-- Migraciones existentes:
-	- init.
-	- add_is_available.
-- docker-compose levanta PostgreSQL 15 con credenciales definidas.
-
-Conclusión:
-- Base para levantar entorno local y poblar datos ya está preparada.
-
-
-2.10 Pruebas backend
-
-- Existen archivos spec para varios módulos, pero la mayoría son tests de “should be defined”.
-- E2E base de AppController (Hello World) todavía de plantilla.
-
-Conclusión testing:
-- Estructura de tests creada, cobertura funcional real aún baja.
-
-
-==================================================
-3) FRONTEND - ESTADO DETALLADO
-==================================================
-
-3.1 Stack y arquitectura
-
-- Expo SDK 54 con React 19.
-- Expo Router con grupos de rutas: (auth), (client), (admin).
-- NativeWind (Tailwind para RN).
-- React Query para consumo/caché de API.
-- Zustand para estado del carrito.
-- Axios para cliente HTTP.
-- Reanimated para animaciones.
-- Image Picker para subir fotos desde admin.
-
-Conclusión base técnica:
-- Muy buena base para escalar; stack moderno y apropiado.
-
-
-3.2 Navegación y layouts
-
-Root layout:
-- Configura fuentes, splash y QueryClientProvider.
-- Declara navegación a grupos client/auth/admin y pantalla webpay-result.
-
-Client layout:
-- Tabs: menú, carrito, pedidos, perfil.
-- Header personalizado con logo y branding.
-- Badge de carrito conectado a Zustand.
-- Atajo “secreto” tocando logo para entrar a dashboard admin.
-
-Admin layout:
-- Stack para dashboard y menu-manager.
-- Botón “Salir” para volver al flujo cliente.
-
-Auth layout:
-- Stack login/register sin header.
-
-Conclusión navegación:
-- Estructura de rutas bien montada.
-
-
-3.3 Cliente - Pantalla menú (index)
-
-Lo implementado:
-- Carga productos desde GET /products (React Query).
-- Carrusel visual con banners y autoplay.
-- Diseño avanzado y animado (skeletons, transición, hero).
-- Grid de productos.
-- Botón + agrega al carrito global (Zustand) con datos reales.
-
-Estado:
-- Funcional y con buen nivel visual/UX.
-
-
-3.4 Cliente - Carrito (cart)
-
-Lo implementado:
-- Vista vacía con CTA de regreso al menú.
-- Lista de productos del carrito real.
-- Incremento/decremento/eliminación de ítems.
-- Selector delivery/retiro (afecta costo de envío localmente).
-- Resumen dinámico de subtotal, envío y total.
-- Botón “Ir a pagar” visualmente listo.
-
-Estado:
-- Carrito está funcional a nivel local/UI.
-- Checkout real aún no conectado a backend (botón pagar sin acción de creación de orden/pago).
-
-
-3.5 Cliente - Pedidos, perfil, resultado Webpay
-
-Archivos:
-- orders.tsx
-- profile.tsx
-- webpay-result.tsx
-
-Estado:
-- Pantallas en construcción (placeholder).
-
-Implicancia:
-- Falta cerrar experiencia post-compra e historial de pedidos del usuario.
-
-
-3.6 Auth frontend
-
-Archivos login/register:
-- Actualmente ambos están como “Pantalla en construcción”.
-
-Implicancia:
-- No existe aún flujo completo de login/register en app móvil.
-- No hay persistencia/gestión de token en frontend.
-
-
-3.7 Admin frontend
-
-Dashboard:
-- Tarjeta operativa para ir a Gestor de Menú.
-- Tarjeta de “Pedidos en Vivo” marcada como próximamente.
-
-Menu Manager:
-- Lista productos desde backend.
-- Permite elegir imagen desde galería y subirla vía PATCH /products/:id/image.
-- Muestra estados de carga/error.
-- Refresca cache al subir exitosamente.
-- Botones de crear/editar están visualmente presentes, pero no implementan flujo CRUD completo aún.
-
-Estado admin:
-- El flujo de subir imágenes sí está encaminado y funcional.
-- Gestión completa de menú todavía parcial.
-
-
-3.8 Cliente API frontend
-
-Implementación actual:
-- Axios baseURL fija a una IP local de red.
-
-Implicancia:
-- Funciona en entorno local específico.
-- Para volver a trabajar tras pausa, es muy probable que haya que actualizar IP o pasar a variable de entorno.
-
-
-==================================================
-4) HALLAZGOS IMPORTANTES AL REVISAR TODO
-==================================================
-
-4.1 Backend está muy avanzado, pero hay inconsistencias puntuales
-
-1. Inconsistencia de rewardType entre DTO y servicio de órdenes.
-	 - DTO CreateOrderDto acepta: FREE_DELIVERY, FREE_BEVERAGE, FREE_BURGER.
-	 - OrdersService espera: queso, bebida, papas, delivery, etc.
-	 - Esto hoy puede romper validaciones al crear pedidos con recompensas.
-
-2. Inconsistencia de campos address/phone en CreateOrderDto.
-	 - DTO exige address y phone.
-	 - En lógica actual de OrdersService esos campos no se guardan en Order (modelo no tiene esas columnas).
-	 - Quedan “desacoplados” entre contrato API y persistencia real.
-
-3. Seguridad temporal en upload de imagen.
-	 - Guardias admin están comentados en PATCH /products/:id/image.
-	 - Probablemente se dejó así para avanzar rápido en integración móvil.
-
-4. URL de imagen en ProductsService.
-	 - findAll transforma image a URL completa.
-	 - findOne retorna valor sin transformación.
-	 - Puede generar comportamiento distinto según endpoint consumido.
-
-5. Tipo OrderWithDetails incluye address, pero el modelo Order no tiene ese campo.
-	 - Ahora se disimula con casteos unknown.
-	 - Conviene limpiar tipos para evitar errores ocultos.
-
-
-4.2 Frontend está a mitad de camino funcional
-
-Ya está:
-- UX visual del menú y carrito.
-- Navegación por tabs/admin.
-- Integración de listado de productos y subida de imagen admin.
-- Estado global de carrito bien implementado.
-
-Falta:
-- Auth real (login/register).
-- Checkout real (crear orden y luego iniciar pago).
-- Confirmación/result screen de Webpay.
-- Historial de pedidos del cliente.
-- Perfil con datos/recompensas reales.
-
-
-==================================================
-5) RESPUESTA A TU DUDA ORIGINAL (EN CRUDO)
-==================================================
-
-Sí: tu recuerdo está bastante acertado.
-
-- El backend está “casi todo completo” en términos de negocio principal.
-	Tiene auth, productos, extras, pedidos, pagos y puntos con reglas avanzadas.
-
-- Lo que estabas haciendo en frontend también coincide.
-	Se nota que estabas construyendo fuerte la parte visual y de interacción del cliente/admin,
-	dejando pendientes los flujos finales (auth y checkout end-to-end).
-
-
-==================================================
-6) ESTADO ACTUAL POR NIVEL DE AVANCE
-==================================================
-
-Muy avanzado / casi listo:
-- Backend de dominio (orders + points + webpay + catálogo).
-- Estructura técnica general backend.
-
-Avance medio-alto:
-- Frontend cliente: menú y carrito.
-- Frontend admin: gestor de imágenes de productos.
-
-Pendiente crítico para “cerrar producto”:
-- Flujo completo de autenticación en frontend.
-- Checkout real conectado a backend.
-- Pantallas finales de pedido/perfil/resultado pago.
-- Arreglar inconsistencias DTO/servicio en recompensas y datos de orden.
-
-
-==================================================
-7) RESUMEN EJECUTIVO FINAL
-==================================================
-
-El proyecto Lajambre no está en estado inicial: está en una fase avanzada.
-El backend contiene ya la mayor parte de la lógica de negocio compleja y la integración de pagos/puntos,
-con algunos ajustes de consistencia por pulir. El frontend tiene una base sólida, atractiva y bien estructurada,
-con menú y carrito operativos a nivel UI/estado, y con un panel admin funcional para carga de imágenes.
-
-Lo que quedó pendiente antes de pausar parece ser exactamente la parte final de “cerrar el círculo” del frontend:
-autenticación real, creación de pedido desde carrito, arranque/confirmación del pago Webpay y visualización de
-pedidos/perfil/recompensas en pantallas actualmente placeholder.
-
-En resumen: backend casi completo, frontend en fase de integración final de flujos críticos.
-
-
-==================================================
-8) RE-REVISION SOLO BACKEND (25-04-2026)
-==================================================
-
-Se hizo una re-revision tecnica enfocada solo en backend, validando:
-- consistencia de esquema Prisma,
-- estado de migraciones,
-- compilacion TypeScript/Nest,
-- pruebas actuales,
-- consistencia de reglas de negocio en pedidos/recompensas.
-
-Resultado de verificaciones ejecutadas:
-- Prisma validate: OK (schema valido).
-- Prisma migrate status: OK (migraciones al dia en la BD actual).
-- Build backend: FALLA.
-- Test backend: FALLA.
-
-Hallazgos bloqueantes (backend no 100% listo aun):
-
-1) Compilacion rota en Nest (bloqueante).
-- Error de import en UsersModule por alias absoluto no resuelto:
-	import de PrismaService usando 'src/prisma.service' mientras el tsconfig actual no tiene baseUrl para ese alias.
-- Impacto: no se puede generar build de produccion.
-
-2) Suite de tests fallando (bloqueante de calidad).
-- Los specs de auth/orders/users fallan por dependencias no inyectadas en los modulos de test.
-- Impacto: no hay red de seguridad automatizada valida para confirmar regresiones.
-
-3) Inconsistencia de reglas de recompensa en OrdersService (logica funcional).
-- Se unifico rewardType en MAYUSCULAS en DTO/costos (bien), pero la validacion especial de premios aun compara con valores antiguos en minusculas ('dos_por_uno', 'upgrade').
-- Impacto: esa validacion especial no se activa cuando corresponde para los nuevos valores (DOS_POR_UNO, UPGRADE_BURGER).
-
-4) Validacion de saldo de puntos aparentemente removida en create order (riesgo alto de negocio).
-- En el flujo actual se calcula pointsToUse y luego se descuenta saldo, pero ya no aparece la validacion explicita de "puntos suficientes" previa al descuento.
-- Impacto: riesgo de errores de negocio y/o fallos transaccionales por intento de canje sin saldo.
-
-5) Seguridad de upload de imagen sigue abierta temporalmente (riesgo medio).
-- La ruta PATCH /products/:id/image sigue con guardias comentados en controller.
-- Impacto: endpoint administrativo expuesto sin control de rol en estado actual.
-
-
-VEREDICTO FINAL BACKEND (SOLO BACKEND):
-NO esta al 100% listo todavia.
-
-Estado estimado actual del backend: 88% - 92%.
-
-Motivo del veredicto:
-- El dominio esta muy avanzado y las mejoras recientes son reales,
-- pero mientras exista build roto + tests fallando + inconsistencias de reglas criticas en pedidos/recompensas,
-	no es correcto declararlo "100% listo" para cierre tecnico.
-
-
-==================================================
-9) CIERRE FINAL BACKEND (AUDITORIA DE CIERRE TECNICO)
-==================================================
-
-Fecha: 25-04-2026
-
-Alcance de esta verificacion final (solo backend):
-- Compilacion del backend.
-- Consistencia de imports tras cambio de rutas absolutas a relativas.
-- Consistencia de reglas de negocio en OrdersService para rewardType en mayusculas.
-- Validacion de saldo de puntos antes de canje.
-- Confirmacion de decision tecnica sobre tests eliminados para fase MVP.
-- Seguridad de guards comentados mantenida intencionalmente para no bloquear pruebas de integracion frontend.
-
-Evidencia verificada en esta auditoria:
-- Build backend ejecutado con salida: BUILD_EXIT_CODE=0.
-- No se detectan imports con prefijo src/ en backend/src.
-- UsersModule usa import relativo correcto para PrismaService.
-- CreateOrderDto define rewardType en mayusculas (catalogo unificado).
-- OrdersService usa llaves de rewardType en mayusculas y valida saldo de puntos antes del descuento.
-- La validacion especial de premios usa valores en mayusculas (DOS_POR_UNO y UPGRADE_BURGER), consistente con el DTO.
-- No hay archivos .spec.ts en backend (decision aceptada para esta fase MVP).
-
-VEREDICTO FINAL (SOLO BACKEND):
-100% LISTO para cierre de fase tecnica del MVP, bajo los criterios definidos en esta revision.
-
-Nota de contexto operativo:
-- Mantener guards comentados queda aceptado temporalmente por estrategia de integracion.
-- Al activar login completo en frontend, se recomienda reactivar guards/roles como siguiente hito de endurecimiento.
-
-
-==================================================
-10) CIERRE FINAL FRONTEND (ESTADO ACTUAL)
-==================================================
-
-Fecha: 25-04-2026
-
-Alcance de esta revision (solo frontend):
-- Arquitectura, navegacion y estado de pantallas.
-- Integracion actual con backend.
-- Consistencia tecnica base para continuar desarrollo.
-
-Evidencia verificada:
-- Compilacion TypeScript frontend: OK (FRONT_TSC_EXIT_CODE=0).
-- Estructura de navegacion Expo Router presente con grupos (auth), (client), (admin).
-- Estado global de carrito con Zustand implementado y funcional.
-- Menu cliente conectado a backend (GET /products) con React Query.
-- Carrito funcional a nivel UI/local state (agregar, quitar, cambiar cantidades, total dinamico).
-- Panel admin operativo para listar productos y subir imagenes.
-
-Lo que ya esta bien encaminado:
-- Base tecnica moderna y estable para escalar (Expo + Router + Query + Zustand + NativeWind).
-- UX del menu y carrito con buen nivel visual.
-- Flujo admin parcial util para operacion temprana (gestion de imagenes de productos).
-
-Lo que falta para cierre funcional completo de frontend:
-1) Auth frontend completo.
-- login.tsx y register.tsx siguen en pantalla de construccion.
-- Falta consumir /auth/login y /auth/register.
-- Falta persistencia de sesion/token y logout.
-
-2) Checkout real end-to-end.
-- El boton pagar en carrito aun no dispara creacion de orden ni inicio de Webpay.
-- Falta unir cart -> create order -> startPayment -> redireccion/resultado.
-
-3) Experiencia post-compra y cuenta.
-- orders.tsx, profile.tsx y webpay-result.tsx siguen en placeholder.
-- Falta historial real de pedidos, estado de pedido y datos/recompensas del usuario.
-
-4) Robustez operativa de entorno.
-- API usa baseURL fija por IP local de red, util para pruebas pero fragil para cambios de red/dispositivo.
-
-VEREDICTO FINAL (SOLO FRONTEND):
-NO esta 100% listo aun para cierre funcional del producto.
-
-Estado estimado actual del frontend:
-70% - 78%.
-
-Resumen ejecutivo frontend:
-- Frontend solido en base tecnica y UI principal (menu/carrito/admin parcial),
-- pero todavia en fase de integracion critica de negocio (auth, checkout real, resultado de pago, pedidos y perfil).
+# Resumen Detallado y Estado Actual del Proyecto "La Jambre"
+
+Este documento contiene un desglose completo del estado de la plataforma "La Jambre", separando lo que ya está implementado y lo que se encuentra pendiente de desarrollo, para que tengas un mapa de ruta claro de tus siguientes pasos.
+
+---
+
+## 1. BACKEND (NestJS + Prisma + PostgreSQL)
+**Estado General:** Avanzado y sólido. La arquitectura modular está completa y la base de datos está modelada para soportar todo el ciclo de negocio.
+
+### Estructura de la Base de Datos (Prisma)
+- **`User`**: Gestiona usuarios, roles (`ADMIN`, `USER`), direcciones y saldo de puntos. Tiene un sistema de `verificationToken` para confirmar emails.
+- **`Product` & `Category`**: Productos vinculados a categorías. Incluyen campos de precio, imagen y disponibilidad (`isAvailable`).
+- **`Extra`**: Permite definir agregados a los productos.
+- **`Order`, `OrderItem`, `OrderItemExtra`**: El corazón transaccional. Guarda el total, `deliveryFee`, dirección real de entrega (`deliveryAddress`), teléfono de contacto y los datos de Webpay (`buyOrder`, `sessionId`). Sus estados van desde `PENDIENTE` hasta `ENTREGADO` o `CANCELADO`.
+- **`PointTransaction`**: Registro histórico de puntos (`EARNED`, `REDEEMED`, `EXPIRED`), vital para el sistema de fidelidad y cronjobs de expiración.
+
+// Configuración básica del generador y la fuente de datos
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- ENUMS ---
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDIENTE
+  PAGADO
+  EN_CAMINO
+  ENTREGADO
+  CANCELADO
+}
+
+enum PointTransactionType {
+  EARNED
+  REDEEMED
+  EXPIRED
+}
+
+// --- MODELOS DE DATOS ---
+
+model User {
+  id                Int       @id @default(autoincrement())
+  email             String    @unique
+  password          String
+  name              String
+  phone             String
+  address           String?
+  role              Role      @default(USER)
+  orders            Order[]
+
+  // --- SISTEMA DE PUNTOS ---
+  pointsBalance     Int                @default(0)
+  pointTransactions PointTransaction[]
+
+  // --- SISTEMA DE VERIFICACIÓN ---
+  isVerified        Boolean   @default(false)
+  verificationToken String?   // Guardará el código secreto temporal
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  name     String
+  products Product[]
+}
+
+model Product {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String
+  price       Int
+  image       String?
+  isAvailable Boolean     @default(true)
+  category    Category    @relation(fields: [categoryId], references: [id])
+  categoryId  Int
+  orderItems  OrderItem[]
+}
+
+model Extra {
+  id              Int              @id @default(autoincrement())
+  name            String
+  price           Int
+  isAvailable     Boolean          @default(true)
+  orderItemExtras OrderItemExtra[]
+}
+
+model Order {
+  id           Int         @id @default(autoincrement())
+  user         User        @relation(fields: [userId], references: [id])
+  userId       Int
+  status       OrderStatus @default(PENDIENTE)
+  total        Int
+  deliveryFee  Int         @default(1250)
+
+  // --- NUEVOS CAMPOS ---
+  deliveryAddress String?   // Para guardar dónde se entregó físicamente
+  contactPhone    String?   // Para el repartidor
+  // ---------------------
+
+  pointsEarned      Int                @default(0)
+  pointsUsed        Int                @default(0)
+  rewardType        String? 
+  pointTransactions PointTransaction[]
+
+  buyOrder  String? @unique
+  sessionId String?
+
+  items     OrderItem[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([userId])
+}
+
+model OrderItem {
+  id              Int     @id @default(autoincrement())
+  order           Order   @relation(fields: [orderId], references: [id])
+  orderId         Int
+  product         Product @relation(fields: [productId], references: [id])
+  productId       Int
+  quantity        Int
+  priceAtPurchase Int
+
+  extras OrderItemExtra[]
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model OrderItemExtra {
+  id              Int       @id @default(autoincrement())
+  orderItem       OrderItem @relation(fields: [orderItemId], references: [id])
+  orderItemId     Int
+  extra           Extra     @relation(fields: [extraId], references: [id])
+  extraId         Int
+  priceAtPurchase Int
+
+  @@index([orderItemId])
+  @@index([extraId])
+}
+
+// --- HISTORIAL DE PUNTOS ---
+model PointTransaction {
+  id        Int                  @id @default(autoincrement())
+  user      User                 @relation(fields: [userId], references: [id])
+  userId    Int
+  order     Order?               @relation(fields: [orderId], references: [id])
+  orderId   Int?
+  points    Int // Positivo si gana, negativo si canjea
+  type      PointTransactionType
+  expiresAt DateTime? // Fecha de vencimiento (90 días)
+  createdAt DateTime             @default(now())
+
+  @@index([userId])
+}
+
+
+### Módulos y Controladores de la API
+- **`auth.controller`**: Maneja el flujo de login (retorna JWT), registro y envío de correos (nodemailer) para verificación. Contraseñas encriptadas con `bcrypt`.
+- **`users`**: Permite la lectura y modificación de perfiles y balances de puntos.
+- **`products.controller`, `categories.controller`, `extras.controller`**: API completa para el CRUD (Crear, Leer, Actualizar, Borrar) del menú del restaurante.
+- **`orders.controller`**: Recibe las solicitudes de pedidos, interactúa con el SDK de Transbank (`transbank-sdk`) para generar pagos y procesa los webhooks/redirecciones de Webpay.
+
+---
+
+## 2. FRONTEND (React Native + Expo)
+**Estado General:** En pleno desarrollo. La estructura (Expo Router, Tailwind, Zustand, React Query) está lista. Tienes flujos avanzados y otras pantallas como *stubs* (en construcción).
+
+### Arquitectura Técnica del Cliente
+- **Framework:** React Native 0.81 bajo Expo SDK 54.
+- **Navegación:** `expo-router` con rutas protegidas según roles.
+- **Estilos:** `nativewind` (Tailwind CSS) configurado globalmente.
+- **Manejo de API:** `@tanstack/react-query` y `axios` para consumo de datos.
+- **Estado Local:** `zustand` (actualmente gestionando el `cartStore`).
+- **Seguridad:** `expo-secure-store` para guardar el `userToken` de forma encriptada.
+
+### Desglose por Pantallas y Flujos
+
+#### A. Flujo de Autenticación `(auth)`
+- **`login.tsx` y `register.tsx`:** Implementados. Se conectan con el backend, manejan validaciones y guardan el token JWT generado en el `SecureStore`.
+
+#### B. Interfaz de Cliente `(client)`
+- **`index.tsx` (Menú Principal):** Listado del catálogo. (Implementado).
+- **`cart.tsx` (Carrito de Compras):** **Avanzado**. Utiliza `Zustand` para almacenar los productos elegidos, incrementar/reducir cantidad o eliminar. Calcula automáticamente el subtotal, más el costo de envío (Delivery = $1.250 / Retiro = Gratis).
+  - *Lógica actual:* Tiene un botón "Ir a Pagar" que verifica si el token existe en el `SecureStore`. Si no existe, muestra una alerta y redirige a login.
+  - *Pendiente (`TODO`):* Enlazar el botón de pago final con `api.post('/orders', ...)` y el flujo de Webpay.
+- **`orders.tsx` (Mis Pedidos):** 🚧 *En construcción* (Es un archivo stub que solo dice "Pantalla en construcción").
+- **`profile.tsx` (Mi Perfil):** 🚧 *En construcción* (Archivo stub). Aquí se deberán mostrar los datos de usuario y su **saldo de puntos**.
+- **`webpay-result.tsx`:** Pantalla destinada a capturar y mostrar el resultado de la transacción (Éxito/Rechazo) cuando Transbank devuelve al usuario a la App.
+
+#### C. Panel de Administración `(admin)`
+- **`dashboard.tsx`:** **Implementado**. Actúa como menú principal del admin. Incluye una funcionalidad completa de "Cerrar Sesión" que limpia el `SecureStore`, remueve el header de Axios y devuelve al login.
+- **`menu-manager.tsx` (Gestor de Menú):** Interfaz para que los administradores editen productos, ajusten precios, disponibilidad y suban imágenes.
+- **Pedidos en Vivo:** 🚧 *Próximamente*. Botón desactivado en el dashboard. Será la pantalla donde el restaurante vea las órdenes entrantes y cambie los estados (En Camino, Entregado).
+
+---
+
+## 3. SIGUIENTES PASOS SUGERIDOS PARA AVANZAR
+Para continuar uniendo las piezas de tu proyecto, el orden lógico sugerido es el siguiente:
+
+1. **Conectar el Checkout (Carrito -> Backend):** 
+   - Reemplazar el `TODO` en `cart.tsx` para enviar el array de items y el tipo de entrega hacia el endpoint de creación de orden del backend.
+   - Procesar la respuesta del backend (que debería contener la URL de redirección de Webpay) y usar el navegador interno (`expo-web-browser`) para abrir Webpay.
+2. **Pantalla de Resultado Webpay:** 
+   - Configurar los Deep Links de Expo en el backend para que Webpay devuelva al usuario a `webpay-result.tsx` tras pagar, limpiando el `cartStore` si fue exitoso.
+3. **Flujo de Perfil y Puntos:**
+   - Desarrollar `profile.tsx` para hacer fetch al endpoint de usuarios y mostrar el nombre, correo y los **Puntos de Fidelidad** actuales.
+4. **Pantalla de Mis Pedidos (Cliente) y Pedidos en Vivo (Admin):**
+   - Desarrollar `orders.tsx` para que los clientes vean el historial y estado de sus pedidos.
+   - Activar el botón de "Pedidos en Vivo" en el admin y hacer una pantalla que liste todas las órdenes (haciendo pooling o websockets) para cambiarles el estado.
