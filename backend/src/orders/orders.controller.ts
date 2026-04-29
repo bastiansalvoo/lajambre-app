@@ -48,8 +48,29 @@ export class OrdersController {
   // Transbank redirige aquí con un query param 'token_ws'
   // Esta ruta DEBE ser pública para recibir la redirección de Transbank
   @Get('webpay/confirm')
-  async confirm(@Query('token_ws') token: string) {
-    return this.ordersService.confirmPayment(token);
+  async confirm(
+    @Query('token_ws') tokenWs?: string,
+    @Query('TBK_TOKEN') tbkToken?: string, // <--- Atrapamos el token de anulación
+  ) {
+    // 1. Si Transbank nos envía TBK_TOKEN, el cliente apretó "Anular compra"
+    if (tbkToken) {
+      console.log(`Pago anulado por el usuario. Token: ${tbkToken}`);
+      // Aquí el cliente volverá a la app y podemos mostrarle un mensaje de "Pago cancelado"
+      return {
+        status: 'cancelled',
+        message: 'Cancelaste el pago en Webpay. Tu orden sigue pendiente.',
+      };
+    }
+
+    // 2. Si hay token_ws, el flujo fue exitoso e intentamos confirmar el dinero
+    if (tokenWs) {
+      return this.ordersService.confirmPayment(tokenWs);
+    }
+
+    return {
+      status: 'error',
+      message: 'No se recibieron tokens válidos de Transbank',
+    };
   }
 
   @Get('admin/all')

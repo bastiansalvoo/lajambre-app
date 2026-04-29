@@ -248,11 +248,12 @@ export class OrdersService {
       throw new BadRequestException('El pedido no está pendiente.');
 
     const buyOrder = `ORD-${order.id}-${Math.floor(Math.random() * 1000)}`;
-    const returnUrl =
-      process.env.WEBPAY_RETURN_URL ||
-      'http://localhost:3000/orders/webpay/confirm';
 
+    const returnUrl =
+      process.env.WEBPAY_RETURN_URL || // <--- EL JEFE SUPREMO
+      'http://192.168.1.14:3000/orders/webpay/confirm';
     // Si pagó 100% con puntos
+
     if (order.total === 0) {
       await this.prisma.order.update({
         where: { id: order.id },
@@ -260,7 +261,7 @@ export class OrdersService {
       });
       return {
         token: 'GRATIS',
-        url: 'http://localhost:3000/orders/webpay/confirm?token_ws=GRATIS',
+        url: 'http://192.168.1.14:3000/orders/webpay/confirm?token_ws=GRATIS',
       };
     }
 
@@ -373,6 +374,13 @@ export class OrdersService {
   async findAllByUser(userId: number) {
     return this.prisma.order.findMany({
       where: { userId },
+      include: {
+        items: {
+          include: {
+            product: true, // 👈 Esto nos permite mostrar los nombres de lo que compró
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
