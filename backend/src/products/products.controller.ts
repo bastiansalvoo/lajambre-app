@@ -87,6 +87,12 @@ export class ProductsController {
     return this.productsService.findAll();
   }
 
+  // 🌍 PÚBLICO: Obtener extras
+  @Get('extras/all')
+  findAllExtras() {
+    return this.productsService.findAllExtras();
+  }
+
   // 4. Ver uno solo (🌍 PÚBLICO)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {

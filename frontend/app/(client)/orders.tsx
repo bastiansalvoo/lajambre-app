@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'rea
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import * as SecureStore from 'expo-secure-store';
 import { api } from '../../src/api/api';
 
 export default function OrdersScreen() {
@@ -17,18 +18,28 @@ export default function OrdersScreen() {
   );
 
   const fetchOrders = async () => {
-    setIsLoading(true);
     try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (!token) {
+        router.replace('/(auth)/login');
+        return;
+      }
+
+      setIsLoading(true);
       const response = await api.get('/orders');
       setOrders(response.data);
-    } catch (error) {
-      console.error("Error cargando pedidos:", error);
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        await SecureStore.deleteItemAsync('userToken');
+        await SecureStore.deleteItemAsync('userRole');
+        delete api.defaults.headers.common['Authorization'];
+        router.replace('/(auth)/login');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 🎨 Estilos de estado más sólidos y modernos (estilo app nativa)
   const getStatusStyle = (status: string) => {
     switch (status) {
       case 'PAGADO': 
@@ -60,7 +71,6 @@ export default function OrdersScreen() {
   return (
     <View className="flex-1 bg-black">
       
-      {/* Título de la sección */}
       <View className="px-5 py-6 flex-row items-center justify-between">
         <View>
           <Text className="text-white text-2xl font-black uppercase tracking-widest">Mis Pedidos</Text>
@@ -87,10 +97,8 @@ export default function OrdersScreen() {
             return (
               <View key={order.id} className="bg-neutral-900 rounded-3xl mb-6 p-5 border border-neutral-800">
                 
-                {/* 📌 CABECERA DE LA TARJETA */}
                 <View className="flex-row justify-between items-center mb-4">
                   <View className="flex-row items-center">
-                    {/* Icono circular a la izquierda para darle un toque más app */}
                     <View className="w-12 h-12 bg-black rounded-full items-center justify-center mr-3 border border-neutral-800">
                       <FontAwesome name="shopping-bag" size={16} color="#EAB308" />
                     </View>
@@ -100,7 +108,6 @@ export default function OrdersScreen() {
                     </View>
                   </View>
                   
-                  {/* Badge de estado sólido */}
                   <View className={`${statusConfig.bg} px-3 py-1.5 rounded-full flex-row items-center shadow-sm`}>
                     <FontAwesome name={statusConfig.icon as any} size={10} color={statusConfig.text.includes('black') ? 'black' : 'white'} />
                     <Text className={`${statusConfig.text} text-[10px] font-black uppercase ml-1.5 tracking-widest`}>
@@ -111,12 +118,10 @@ export default function OrdersScreen() {
 
                 <View className="h-[1px] w-full bg-neutral-800 my-1" />
 
-                {/* 🍔 LISTA DE PRODUCTOS */}
                 <View className="py-3">
                   {order.items?.map((item: any, index: number) => (
                     <View key={index} className="flex-row items-center justify-between py-2">
                       <View className="flex-row items-center flex-1 pr-4">
-                        {/* Multiplicador tipo UberEats */}
                         <View className="bg-neutral-800 px-2 py-1 rounded flex-row items-center mr-3">
                           <Text className="text-yellow-500 font-black text-xs">{item.quantity}</Text>
                           <Text className="text-neutral-500 font-bold text-[10px] ml-0.5">x</Text>
@@ -134,10 +139,8 @@ export default function OrdersScreen() {
 
                 <View className="h-[1px] w-full bg-neutral-800 mt-1 mb-4" />
 
-                {/* 💰 PIE DE TARJETA (TOTAL Y MÉTODO) */}
                 <View className="flex-row justify-between items-end">
                   <View>
-                    {/* Tag elegante para el método de entrega */}
                     <View className="bg-black border border-neutral-800 px-3 py-2 rounded-xl flex-row items-center">
                       <FontAwesome name={order.deliveryFee > 0 ? "motorcycle" : "building"} size={12} color="#9CA3AF" />
                       <Text className="text-neutral-300 text-xs font-bold uppercase tracking-wider ml-2">

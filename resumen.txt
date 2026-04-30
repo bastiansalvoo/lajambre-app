@@ -1,219 +1,46 @@
-# Resumen Detallado y Estado Actual del Proyecto "La Jambre"
+# REPORTE TÉCNICO DE ARQUITECTURA: LAJAMBRE APP
+Fecha: 29 de abril de 2026
+Autor: Tech Lead / Software Architect
 
-Este documento contiene un desglose completo del estado de la plataforma "La Jambre", separando lo que ya está implementado y lo que se encuentra pendiente de desarrollo, para que tengas un mapa de ruta claro de tus siguientes pasos.
+## 1. RESUMEN EXTENSO DE LA SOLUCIÓN
+Lajambre App es una solución Full-Stack diseñada para la alta demanda de un sistema de delivery moderno.
 
----
+### Infraestructura de Backend (NestJS + Prisma)
+*   **Gestión de Datos:** Se utiliza PostgreSQL con Prisma ORM. La base de datos está normalizada para manejar la complejidad de órdenes con múltiples productos y extras, además de un historial detallado de transacciones de puntos.
+*   **Seguridad:** Implementa un flujo de autenticación robusto mediante Passport-JWT. La verificación de identidad se realiza mediante un `verificationToken` generado con `crypto`, asegurando que solo usuarios reales operen en la plataforma.
+*   **Lógica de Negocio:**
+    *   **Sistema de Fidelización:** Incluye un Cron Job (`cleanExpiredPoints`) que se ejecuta diariamente a las 03:00 AM para invalidar puntos con más de 90 días.
+    *   **Gamificación:** El sistema calcula niveles (Bronce/Plata/Oro) basados en `puntosHistoricos` para mantener el estatus del cliente independientemente de los canjes realizados.
+    *   **Control de Tienda:** Posee validación de horarios y multiplicadores dinámicos de puntos (1.5x los martes).
 
-## 1. BACKEND (NestJS + Prisma + PostgreSQL)
-**Estado General:** Avanzado y sólido. La arquitectura modular está completa y la base de datos está modelada para soportar todo el ciclo de negocio.
-
-### Estructura de la Base de Datos (Prisma)
-- **`User`**: Gestiona usuarios, roles (`ADMIN`, `USER`), direcciones y saldo de puntos. Tiene un sistema de `verificationToken` para confirmar emails.
-- **`Product` & `Category`**: Productos vinculados a categorías. Incluyen campos de precio, imagen y disponibilidad (`isAvailable`).
-- **`Extra`**: Permite definir agregados a los productos.
-- **`Order`, `OrderItem`, `OrderItemExtra`**: El corazón transaccional. Guarda el total, `deliveryFee`, dirección real de entrega (`deliveryAddress`), teléfono de contacto y los datos de Webpay (`buyOrder`, `sessionId`). Sus estados van desde `PENDIENTE` hasta `ENTREGADO` o `CANCELADO`.
-- **`PointTransaction`**: Registro histórico de puntos (`EARNED`, `REDEEMED`, `EXPIRED`), vital para el sistema de fidelidad y cronjobs de expiración.
-
-// Configuración básica del generador y la fuente de datos
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "postgresql"
-}
-
-// --- ENUMS ---
-enum Role {
-  USER
-  ADMIN
-}
-
-enum OrderStatus {
-  PENDIENTE
-  PAGADO
-  EN_CAMINO
-  ENTREGADO
-  CANCELADO
-}
-
-enum PointTransactionType {
-  EARNED
-  REDEEMED
-  EXPIRED
-}
-
-// --- MODELOS DE DATOS ---
-
-model User {
-  id                Int       @id @default(autoincrement())
-  email             String    @unique
-  password          String
-  name              String
-  phone             String
-  address           String?
-  role              Role      @default(USER)
-  orders            Order[]
-
-  // --- SISTEMA DE PUNTOS ---
-  pointsBalance     Int                @default(0)
-  pointTransactions PointTransaction[]
-
-  // --- SISTEMA DE VERIFICACIÓN ---
-  isVerified        Boolean   @default(false)
-  verificationToken String?   // Guardará el código secreto temporal
-
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-}
-
-model Category {
-  id       Int       @id @default(autoincrement())
-  name     String
-  products Product[]
-}
-
-model Product {
-  id          Int         @id @default(autoincrement())
-  name        String
-  description String
-  price       Int
-  image       String?
-  isAvailable Boolean     @default(true)
-  category    Category    @relation(fields: [categoryId], references: [id])
-  categoryId  Int
-  orderItems  OrderItem[]
-}
-
-model Extra {
-  id              Int              @id @default(autoincrement())
-  name            String
-  price           Int
-  isAvailable     Boolean          @default(true)
-  orderItemExtras OrderItemExtra[]
-}
-
-model Order {
-  id           Int         @id @default(autoincrement())
-  user         User        @relation(fields: [userId], references: [id])
-  userId       Int
-  status       OrderStatus @default(PENDIENTE)
-  total        Int
-  deliveryFee  Int         @default(1250)
-
-  // --- NUEVOS CAMPOS ---
-  deliveryAddress String?   // Para guardar dónde se entregó físicamente
-  contactPhone    String?   // Para el repartidor
-  // ---------------------
-
-  pointsEarned      Int                @default(0)
-  pointsUsed        Int                @default(0)
-  rewardType        String? 
-  pointTransactions PointTransaction[]
-
-  buyOrder  String? @unique
-  sessionId String?
-
-  items     OrderItem[]
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-
-  @@index([userId])
-}
-
-model OrderItem {
-  id              Int     @id @default(autoincrement())
-  order           Order   @relation(fields: [orderId], references: [id])
-  orderId         Int
-  product         Product @relation(fields: [productId], references: [id])
-  productId       Int
-  quantity        Int
-  priceAtPurchase Int
-
-  extras OrderItemExtra[]
-
-  @@index([orderId])
-  @@index([productId])
-}
-
-model OrderItemExtra {
-  id              Int       @id @default(autoincrement())
-  orderItem       OrderItem @relation(fields: [orderItemId], references: [id])
-  orderItemId     Int
-  extra           Extra     @relation(fields: [extraId], references: [id])
-  extraId         Int
-  priceAtPurchase Int
-
-  @@index([orderItemId])
-  @@index([extraId])
-}
-
-// --- HISTORIAL DE PUNTOS ---
-model PointTransaction {
-  id        Int                  @id @default(autoincrement())
-  user      User                 @relation(fields: [userId], references: [id])
-  userId    Int
-  order     Order?               @relation(fields: [orderId], references: [id])
-  orderId   Int?
-  points    Int // Positivo si gana, negativo si canjea
-  type      PointTransactionType
-  expiresAt DateTime? // Fecha de vencimiento (90 días)
-  createdAt DateTime             @default(now())
-
-  @@index([userId])
-}
-
-
-### Módulos y Controladores de la API
-- **`auth.controller`**: Maneja el flujo de login (retorna JWT), registro y envío de correos (nodemailer) para verificación. Contraseñas encriptadas con `bcrypt`.
-- **`users`**: Permite la lectura y modificación de perfiles y balances de puntos.
-- **`products.controller`, `categories.controller`, `extras.controller`**: API completa para el CRUD (Crear, Leer, Actualizar, Borrar) del menú del restaurante.
-- **`orders.controller`**: Recibe las solicitudes de pedidos, interactúa con el SDK de Transbank (`transbank-sdk`) para generar pagos y procesa los webhooks/redirecciones de Webpay.
+### Frontend (Expo + React Native)
+*   **Estado Global (Zustand):** El carrito implementa una "Huella Digital" (`cartItemId`). Esto permite que si un cliente pide dos "Burger Clásicas" pero una con "Extra Tocino" y otra sin, el sistema las trate como ítems independientes en el carrito y en la orden final.
+*   **Experiencia de Usuario:** Animaciones con Reanimated y carga asíncrona optimizada con TanStack Query para una sensación de fluidez nativa.
+*   **Administración:** Posee módulos de "Live Orders" y "Menu Manager" para la gestión operativa en tiempo real.
 
 ---
 
-## 2. FRONTEND (React Native + Expo)
-**Estado General:** En pleno desarrollo. La estructura (Expo Router, Tailwind, Zustand, React Query) está lista. Tienes flujos avanzados y otras pantallas como *stubs* (en construcción).
-
-### Arquitectura Técnica del Cliente
-- **Framework:** React Native 0.81 bajo Expo SDK 54.
-- **Navegación:** `expo-router` con rutas protegidas según roles.
-- **Estilos:** `nativewind` (Tailwind CSS) configurado globalmente.
-- **Manejo de API:** `@tanstack/react-query` y `axios` para consumo de datos.
-- **Estado Local:** `zustand` (actualmente gestionando el `cartStore`).
-- **Seguridad:** `expo-secure-store` para guardar el `userToken` de forma encriptada.
-
-### Desglose por Pantallas y Flujos
-
-#### A. Flujo de Autenticación `(auth)`
-- **`login.tsx` y `register.tsx`:** Implementados. Se conectan con el backend, manejan validaciones y guardan el token JWT generado en el `SecureStore`.
-
-#### B. Interfaz de Cliente `(client)`
-- **`index.tsx` (Menú Principal):** Listado del catálogo. (Implementado).
-- **`cart.tsx` (Carrito de Compras):** **Avanzado**. Utiliza `Zustand` para almacenar los productos elegidos, incrementar/reducir cantidad o eliminar. Calcula automáticamente el subtotal, más el costo de envío (Delivery = $1.250 / Retiro = Gratis).
-  - *Lógica actual:* Tiene un botón "Ir a Pagar" que verifica si el token existe en el `SecureStore`. Si no existe, muestra una alerta y redirige a login.
-  - *Pendiente (`TODO`):* Enlazar el botón de pago final con `api.post('/orders', ...)` y el flujo de Webpay.
-- **`orders.tsx` (Mis Pedidos):** 🚧 *En construcción* (Es un archivo stub que solo dice "Pantalla en construcción").
-- **`profile.tsx` (Mi Perfil):** 🚧 *En construcción* (Archivo stub). Aquí se deberán mostrar los datos de usuario y su **saldo de puntos**.
-- **`webpay-result.tsx`:** Pantalla destinada a capturar y mostrar el resultado de la transacción (Éxito/Rechazo) cuando Transbank devuelve al usuario a la App.
-
-#### C. Panel de Administración `(admin)`
-- **`dashboard.tsx`:** **Implementado**. Actúa como menú principal del admin. Incluye una funcionalidad completa de "Cerrar Sesión" que limpia el `SecureStore`, remueve el header de Axios y devuelve al login.
-- **`menu-manager.tsx` (Gestor de Menú):** Interfaz para que los administradores editen productos, ajusten precios, disponibilidad y suban imágenes.
-- **Pedidos en Vivo:** 🚧 *Próximamente*. Botón desactivado en el dashboard. Será la pantalla donde el restaurante vea las órdenes entrantes y cambie los estados (En Camino, Entregado).
+## 2. VEREDICTO DE COMPLETITUD (MVP)
+**Estado: 90% Completado.**
+El proyecto cubre todos los flujos críticos de un MVP: Registro -> Selección -> Compra -> Pago -> Historial. 
+*   **Justificación:** La integración con Transbank es funcional, el sistema de lealtad está automatizado y la separación de roles es efectiva. Falta cerrar el flujo de "Notificaciones Push" y el manejo de errores de pago para considerarlo 100% MVP.
 
 ---
 
-## 3. SIGUIENTES PASOS SUGERIDOS PARA AVANZAR
-Para continuar uniendo las piezas de tu proyecto, el orden lógico sugerido es el siguiente:
+## 3. GAPS Y FALTANTES (REQUERIMIENTOS MODERNOS)
+1.  **Recuperación de Fallos de Pago:** Si Webpay falla, la orden queda en estado "PENDIENTE", pero el usuario no tiene un botón directo en la App para "Reintentar Pago" sin crear una orden nueva.
+2.  **Notificaciones en Tiempo Real:** Se requiere Socket.io o FCM para notificar al cliente cuando su pedido pase de "Preparando" a "En Camino" sin que tenga que refrescar la pantalla manualmente.
+3.  **Geocodificación:** El campo de dirección es texto libre. Se recomienda integrar Google Places para asegurar que el despacho esté dentro del radio de entrega permitido. (esto segun yo no)
+4.  **Validación de Stock:** Aunque existe el switch `isAvailable`, no hay un contador de stock numérico que evite sobreventas de productos limitados.(esto segun yo no)
 
-1. **Conectar el Checkout (Carrito -> Backend):** 
-   - Reemplazar el `TODO` en `cart.tsx` para enviar el array de items y el tipo de entrega hacia el endpoint de creación de orden del backend.
-   - Procesar la respuesta del backend (que debería contener la URL de redirección de Webpay) y usar el navegador interno (`expo-web-browser`) para abrir Webpay.
-2. **Pantalla de Resultado Webpay:** 
-   - Configurar los Deep Links de Expo en el backend para que Webpay devuelva al usuario a `webpay-result.tsx` tras pagar, limpiando el `cartStore` si fue exitoso.
-3. **Flujo de Perfil y Puntos:**
-   - Desarrollar `profile.tsx` para hacer fetch al endpoint de usuarios y mostrar el nombre, correo y los **Puntos de Fidelidad** actuales.
-4. **Pantalla de Mis Pedidos (Cliente) y Pedidos en Vivo (Admin):**
-   - Desarrollar `orders.tsx` para que los clientes vean el historial y estado de sus pedidos.
-   - Activar el botón de "Pedidos en Vivo" en el admin y hacer una pantalla que liste todas las órdenes (haciendo pooling o websockets) para cambiarles el estado.
+---
+
+## 4. VEREDICTO DE PRODUCCIÓN: "NO-GO" ❌
+A pesar de la excelente calidad del código, el sistema **no es apto para producción real hoy** por los siguientes motivos de seguridad y configuración:
+
+*   **Credenciales:** El sistema aún utiliza el Commerce Code y API Key de integración (pruebas) de Transbank.
+*   **Configuración Crítica:** El control de horarios de la tienda está comentado en `OrdersService.ts`. Un despliegue así permitiría pedidos fuera de horario.
+*   **Servicio de Correo:** Nodemailer requiere una configuración de SMTP de producción (ej. SendGrid/Amazon SES) en lugar de cuentas locales o de prueba.
+*   **Exposición de Datos:** Se recomienda una auditoría final a los DTOs para asegurar que no se filtren contraseñas o tokens en las respuestas del API de usuarios.
+
+**Acción recomendada:** Resolver los puntos de configuración crítica y migrar a credenciales de producción para cambiar el dictamen a "GO".

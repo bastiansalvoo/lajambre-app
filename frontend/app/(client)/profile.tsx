@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../../src/api/api';
+import { useCartStore } from '../../src/store/cartStore';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -15,15 +16,27 @@ export default function ProfileScreen() {
 
   const fetchData = async () => {
     try {
-      // Hacemos ambas peticiones en paralelo para que cargue más rápido
+      const token = await SecureStore.getItemAsync('userToken');
+      
+      if (!token) {
+        router.replace('/(auth)/login');
+        return;
+      }
+
       const [profileRes, rewardsRes] = await Promise.all([
         api.get('/auth/perfil'),
         api.get('/auth/recompensas')
       ]);
       setProfile(profileRes.data.usuario);
       setRewardsData(rewardsRes.data);
-    } catch (error) {
-      console.error("Error al cargar perfil o recompensas:", error);
+
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        await SecureStore.deleteItemAsync('userToken');
+        await SecureStore.deleteItemAsync('userRole');
+        delete api.defaults.headers.common['Authorization'];
+        router.replace('/(auth)/login');
+      }
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -37,6 +50,9 @@ export default function ProfileScreen() {
   );
 
   const handleLogout = async () => {
+    // Limpiamos el carrito al cerrar sesión
+    useCartStore.getState().clearCart();
+    
     await SecureStore.deleteItemAsync('userToken');
     await SecureStore.deleteItemAsync('userRole');
     delete api.defaults.headers.common['Authorization'];
@@ -51,16 +67,11 @@ export default function ProfileScreen() {
     );
   }
 
-  // Lógica para la Barra de Progreso
-  // Buscamos la primera recompensa que AÚN NO ha sido alcanzada
   const nextReward = rewardsData?.recompensas.find((r: any) => !r.alcanzado);
-  
-  // Calculamos el porcentaje (si ya alcanzó todo, es 100%)
   const progressPercentage = nextReward 
     ? Math.min((rewardsData.puntosActuales / nextReward.puntosRequeridos) * 100, 100) 
     : 100;
 
-  // Colores dinámicos según el nivel
   const isGold = rewardsData?.nivelActual?.includes('Oro');
   const isSilver = rewardsData?.nivelActual?.includes('Plata');
   const cardBorderColor = isGold ? 'border-yellow-400' : isSilver ? 'border-gray-400' : 'border-orange-500/50';
@@ -74,7 +85,6 @@ export default function ProfileScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchData();}} tintColor="#EAB308" />}
       >
         
-        {/* 👤 CABECERA DE USUARIO */}
         <View className="px-6 pt-8 pb-4 flex-row justify-between items-center">
           <View>
             <Text className="text-white text-2xl font-black uppercase tracking-widest">Mi Perfil</Text>
@@ -85,9 +95,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* 💳 TARJETA DE MEMBRESÍA (THE GOLDEN CARD) */}
         <View className={`mx-5 my-4 bg-neutral-900 border ${cardBorderColor} rounded-3xl p-6 shadow-xl ${cardShadow} relative overflow-hidden`}>
-          {/* Brillo decorativo de fondo */}
           <View className="absolute -right-10 -top-10 w-40 h-40 bg-yellow-500/5 rounded-full blur-3xl" />
           
           <View className="flex-row justify-between items-start mb-6">
@@ -106,7 +114,6 @@ export default function ProfileScreen() {
             <Text className="text-yellow-500 font-bold ml-2 uppercase text-xs">pts</Text>
           </View>
 
-          {/* 🚀 BARRA DE PROGRESO HACIA LA SIGUIENTE RECOMPENSA */}
           <View className="bg-black/50 p-4 rounded-2xl border border-neutral-800">
             {nextReward ? (
               <>
@@ -116,9 +123,7 @@ export default function ProfileScreen() {
                   </Text>
                   <Text className="text-white font-black text-xs uppercase">{nextReward.icono} {nextReward.nombre}</Text>
                 </View>
-                {/* Barra de fondo */}
                 <View className="w-full h-2 bg-neutral-800 rounded-full overflow-hidden">
-                  {/* Barra de llenado dinámica */}
                   <View 
                     className="h-full bg-yellow-500 rounded-full" 
                     style={{ width: `${progressPercentage}%` }} 
@@ -131,7 +136,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* 🎁 CATÁLOGO DE RECOMPENSAS (Carrusel Horizontal) */}
         <View className="mt-4 mb-8">
           <View className="px-6 mb-4 flex-row items-center">
             <View className="h-4 w-1 bg-yellow-500 mr-2 rounded-full" />
@@ -157,7 +161,6 @@ export default function ProfileScreen() {
           </ScrollView>
         </View>
 
-        {/* 🕒 HISTORIAL DE MOVIMIENTOS */}
         <View className="px-5 mb-8">
           <View className="mb-4 flex-row items-center">
             <View className="h-4 w-1 bg-neutral-500 mr-2 rounded-full" />
@@ -195,7 +198,6 @@ export default function ProfileScreen() {
                         {isEarned ? '+' : ''}{tx.puntos}
                       </Text>
                     </View>
-                    {/* Línea divisoria excepto en el último */}
                     {index < rewardsData.historial.length - 1 && <View className="h-[1px] w-full bg-neutral-800" />}
                   </View>
                 );
@@ -204,7 +206,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* 🚪 BOTÓN CERRAR SESIÓN */}
         <TouchableOpacity 
           onPress={handleLogout}
           className="mx-5 mb-20 bg-neutral-900 border border-red-500/20 py-4 rounded-2xl flex-row justify-center items-center"

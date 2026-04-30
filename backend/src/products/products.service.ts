@@ -63,4 +63,10 @@ export class ProductsService {
       where: { id },
     });
   }
+
+  async findAllExtras() {
+    return this.prisma.extra.findMany({
+      where: { isAvailable: true },
+    });
+  }
 }

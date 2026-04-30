@@ -5,11 +5,11 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../../src/api/api';
+import { useCartStore } from '../../src/store/cartStore';
 
 export default function DashboardScreen() {
   const router = useRouter();
 
-  // 👇 Lógica de Logout
   const handleLogout = async () => {
     Alert.alert(
       "Cerrar Sesión",
@@ -20,19 +20,17 @@ export default function DashboardScreen() {
           text: "Sí, salir", 
           style: "destructive",
           onPress: async () => {
-    try {
-      // 1. Borramos la llave de la bóveda
-      await SecureStore.deleteItemAsync('userToken');
-      
-      // 2. Le quitamos la llave a Axios
-      delete api.defaults.headers.common['Authorization'];
-      
-      // 3. 👇 Lo mandamos a la pantalla de Login en lugar de /(client)
-      router.replace('/(auth)/login');
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error);
-    }
-  }
+            try {
+              // Vaciamos el carrito del admin (si hizo pruebas)
+              useCartStore.getState().clearCart();
+              
+              await SecureStore.deleteItemAsync('userToken');
+              delete api.defaults.headers.common['Authorization'];
+              router.replace('/(auth)/login');
+            } catch (error) {
+              console.error("Error al cerrar sesión:", error);
+            }
+          }
         }
       ]
     );
@@ -41,7 +39,6 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView className="flex-1 bg-neutral-950 px-6 pt-6" edges={['left', 'right', 'bottom']}>
       
-      {/* HEADER CON BOTÓN DE LOGOUT */}
       <View className="flex-row justify-between items-start mb-8">
         <View>
           <Text className="text-white text-3xl font-black uppercase tracking-widest mb-2">
@@ -52,7 +49,6 @@ export default function DashboardScreen() {
           </Text>
         </View>
 
-        {/* 👇 Botón de Salida */}
         <TouchableOpacity 
           onPress={handleLogout}
           className="bg-neutral-900 border border-neutral-800 w-12 h-12 rounded-xl items-center justify-center active:bg-neutral-800"
@@ -61,7 +57,24 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 🍔 Botón hacia el Gestor de Menú (Operativo) */}
+      <TouchableOpacity
+        onPress={() => router.push('/(admin)/live-orders')}
+        className="bg-neutral-900 border border-yellow-500/30 p-6 rounded-2xl flex-row items-center mb-4 active:bg-neutral-800 shadow-lg shadow-yellow-500/10"
+      >
+         <View className="bg-yellow-500 p-4 rounded-xl mr-4">
+          <FontAwesome name="fire" size={24} color="black" />
+        </View>
+        <View className="flex-1">
+          <Text className="text-white font-bold text-lg uppercase tracking-wider">
+            Pedidos en Vivo
+          </Text>
+          <Text className="text-neutral-400 text-sm mt-1">
+            Monitor de cocina y despachos
+          </Text>
+        </View>
+        <FontAwesome name="chevron-right" size={16} color="#EAB308" />
+      </TouchableOpacity>
+
       <TouchableOpacity
         onPress={() => router.push('/(admin)/menu-manager')}
         className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl flex-row items-center mb-4 active:bg-neutral-800"
@@ -74,28 +87,10 @@ export default function DashboardScreen() {
             Gestor de Menú
           </Text>
           <Text className="text-neutral-500 text-sm mt-1">
-            Editar productos, precios y subir fotos
+            Editar productos y precios
           </Text>
         </View>
         <FontAwesome name="chevron-right" size={16} color="#525252" />
-      </TouchableOpacity>
-
-      {/* 📋 Botón hacia Pedidos (Desactivado temporalmente) */}
-      <TouchableOpacity
-        activeOpacity={1}
-        className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl flex-row items-center opacity-50"
-      >
-         <View className="bg-yellow-500/10 p-4 rounded-xl mr-4">
-          <FontAwesome name="motorcycle" size={24} color="#EAB308" />
-        </View>
-        <View className="flex-1">
-          <Text className="text-white font-bold text-lg uppercase tracking-wider">
-            Pedidos en Vivo
-          </Text>
-          <Text className="text-yellow-500/70 text-sm mt-1 font-bold">
-            (Próximamente)
-          </Text>
-        </View>
       </TouchableOpacity>
 
     </SafeAreaView>

@@ -17,6 +17,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Request as ExpressRequest } from 'express';
 import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { OrderStatus } from '@prisma/client';
 
 interface RequestWithUser extends ExpressRequest {
@@ -34,7 +35,6 @@ export class OrdersController {
     return this.ordersService.create(dto, req.user.userId);
   }
 
-  // NUEVO: Iniciar proceso de pago
   @Post(':id/pay')
   @UseGuards(AuthGuard('jwt'))
   async startPayment(
@@ -44,25 +44,19 @@ export class OrdersController {
     return this.ordersService.startPayment(id, req.user.userId);
   }
 
-  // NUEVO: Callback de Webpay (Confirmación)
-  // Transbank redirige aquí con un query param 'token_ws'
-  // Esta ruta DEBE ser pública para recibir la redirección de Transbank
   @Get('webpay/confirm')
   async confirm(
     @Query('token_ws') tokenWs?: string,
-    @Query('TBK_TOKEN') tbkToken?: string, // <--- Atrapamos el token de anulación
+    @Query('TBK_TOKEN') tbkToken?: string,
   ) {
-    // 1. Si Transbank nos envía TBK_TOKEN, el cliente apretó "Anular compra"
     if (tbkToken) {
       console.log(`Pago anulado por el usuario. Token: ${tbkToken}`);
-      // Aquí el cliente volverá a la app y podemos mostrarle un mensaje de "Pago cancelado"
       return {
         status: 'cancelled',
         message: 'Cancelaste el pago en Webpay. Tu orden sigue pendiente.',
       };
     }
 
-    // 2. Si hay token_ws, el flujo fue exitoso e intentamos confirmar el dinero
     if (tokenWs) {
       return this.ordersService.confirmPayment(tokenWs);
     }
@@ -75,6 +69,7 @@ export class OrdersController {
 
   @Get('admin/all')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('ADMIN')
   async findAllAdmin() {
     return this.ordersService.findAllForAdmin();
   }
@@ -94,8 +89,10 @@ export class OrdersController {
     return this.ordersService.findOne(id, req.user.userId);
   }
 
+  // 👇 AHORA SÍ: Solo los administradores pueden cambiar el estado
   @Patch(':id/status')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('ADMIN')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: OrderStatus,

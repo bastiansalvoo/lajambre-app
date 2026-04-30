@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Modal, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
@@ -12,55 +12,61 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // 🛠️ ESTADO PARA NUESTRO CUSTOM MODAL
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalMessage, setModalMessage] = useState('');
+
+  const showCustomAlert = (title: string, message: string) => {
+    setModalTitle(title);
+    setModalMessage(message);
+    setModalVisible(true);
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Atención', 'Por favor, ingresa tu correo y contraseña.');
+      showCustomAlert('Atención 🍔', 'Antes de pedir, ingresa tu correo y contraseña.');
       return;
     }
 
     setIsLoading(true);
     try {
-      // 1. Pedimos permiso al backend
       const response = await api.post('/auth/login', { email, password });
       const token = response.data.access_token; 
-      const userRole = response.data.user.role; // Extraemos el rol de la respuesta
+      const userRole = response.data.user.role; 
 
-      // 2. Guardamos la "llave" y el "rol" en la bóveda del celular
       await SecureStore.setItemAsync('userToken', token);
-      await SecureStore.setItemAsync('userRole', userRole); // <-- GUARDAMOS EL ROL AQUÍ
+      await SecureStore.setItemAsync('userRole', userRole); 
 
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      // 4. Leemos el rol y decidimos a dónde mandarlo
       if (userRole === 'ADMIN') {
-        router.replace('/(admin)/dashboard'); // Angelo va a la cocina
+        router.replace('/(admin)/dashboard'); 
       } else {
-        router.replace('/(client)'); // El cliente normal vuelve a la tienda
+        router.replace('/(client)'); 
       }
 
     } catch (error: any) {
-      console.error("Error de Login:", error);
-      
-      // Capturamos el mensaje exacto de NestJS (Ej: "Credenciales incorrectas")
-      const msg = error.response?.data?.message || "Ocurrió un error al intentar acceder.";
-      const finalMsg = Array.isArray(msg) ? msg[0] : msg;
+      // 🕵️‍♂️ INTERCEPTAMOS EL 401 PARA UN MENSAJE BONITO
+      let finalTitle = 'Acceso Denegado 🔒';
+      let finalMsg = 'Ocurrió un error al intentar acceder.';
 
-      // Mostramos una alerta inteligente ofreciendo ir al registro
-      Alert.alert(
-        'Acceso Denegado', 
-        `${finalMsg}\n\n¿No tienes una cuenta en La Jambre?`,
-        [
-          { text: 'Intentar de nuevo', style: 'cancel' },
-          { text: 'Registrarme', onPress: () => router.replace('/(auth)/register') }
-        ]
-      );
+      if (error.response?.status === 401) {
+        finalTitle = 'Problemas en Cocina 💥';
+        finalMsg = 'Correo o contraseña incorrectos.\n¡Verifica y vuelve a intentarlo!';
+      } else if (error.response?.data?.message) {
+        const msg = error.response.data.message;
+        finalMsg = Array.isArray(msg) ? msg[0] : msg;
+      }
+
+      showCustomAlert(finalTitle, finalMsg);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-950 justify-center px-6" edges={['left', 'right', 'bottom', 'top']}>
+    <SafeAreaView className="flex-1 bg-black justify-center px-6" edges={['left', 'right', 'bottom', 'top']}>
       
       {/* Botón para volver atrás */}
       <TouchableOpacity 
@@ -71,7 +77,7 @@ export default function LoginScreen() {
       </TouchableOpacity>
 
       <View className="items-center mb-10">
-        <View className="bg-yellow-500 w-20 h-20 rounded-full items-center justify-center mb-4">
+        <View className="bg-yellow-500 w-20 h-20 rounded-full items-center justify-center mb-4 shadow-lg shadow-yellow-500/20">
           <FontAwesome name="lock" size={40} color="black" />
         </View>
         <Text className="text-white text-3xl font-black uppercase tracking-widest">Lajambre</Text>
@@ -118,13 +124,72 @@ export default function LoginScreen() {
 
         <TouchableOpacity 
           onPress={() => router.replace('/(auth)/register')}
-          className="mt-6 items-center"
+          className="mt-6 items-center p-2"
         >
           <Text className="text-neutral-500 font-bold uppercase text-[10px] tracking-widest">
             ¿No tienes cuenta? <Text className="text-yellow-500">Regístrate aquí</Text>
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* 🍔 CUSTOM MODAL - ALERTA ELEGANTE DE LA JAMBRE */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        {/* Fondo semi-transparente */}
+        <View className="flex-1 bg-black/80 justify-center items-center px-8">
+          
+          {/* Contenedor de la Alerta (Dark con borde amarillo) */}
+          <View className="bg-neutral-900 border-2 border-yellow-500 rounded-3xl p-6 w-full shadow-2xl shadow-yellow-500/20">
+            
+            {/* Cabecera con Icono de Candado Amarillo */}
+            <View className="items-center mb-4">
+              <View className="w-16 h-16 rounded-full bg-yellow-500 items-center justify-center mb-3">
+                <FontAwesome name="lock" size={32} color="black" />
+              </View>
+              {/* Título: Amarillo, Bold, Uppercase */}
+              <Text className="text-yellow-500 text-center font-black text-xl uppercase tracking-wider">
+                {modalTitle}
+              </Text>
+            </View>
+
+            {/* Mensaje: Blanco */}
+            <Text className="text-neutral-200 text-center text-sm font-bold mt-2 mb-6 leading-5">
+              {modalMessage}
+            </Text>
+
+            {/* Botones de Acción */}
+            <View className="space-y-3">
+              {/* Botón Principal: Amarillo */}
+              <TouchableOpacity 
+                onPress={() => setModalVisible(false)}
+                className="bg-yellow-500 p-4 rounded-xl items-center active:bg-yellow-600"
+              >
+                <Text className="text-black font-black uppercase text-sm tracking-widest">
+                  Intentar de nuevo
+                </Text>
+              </TouchableOpacity>
+
+              {/* Botón Secundario: Borde Gris */}
+              <TouchableOpacity 
+                onPress={() => {
+                  setModalVisible(false);
+                  router.replace('/(auth)/register');
+                }}
+                className="bg-neutral-800 border border-neutral-700 p-4 rounded-xl items-center active:bg-neutral-700"
+              >
+                <Text className="text-neutral-400 font-bold uppercase text-xs tracking-widest">
+                  Crear una cuenta
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+          </View>
+        </View>
+      </Modal>
 
     </SafeAreaView>
   );

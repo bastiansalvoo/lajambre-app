@@ -1,56 +1,68 @@
 import { create } from 'zustand';
 
-// 1. Definimos cómo luce un producto dentro del carrito
-export interface CartItem {
+// 1. Definimos cómo luce un Extra
+export interface ExtraItem {
   id: number;
   name: string;
   price: number;
-  image: string | null;
-  quantity: number;
 }
 
-// 2. Definimos las acciones que nuestro carrito puede hacer
+// 2. Modificamos el producto del carrito
+export interface CartItem {
+  cartItemId: string; // NUEVO: Identificador único (ej: "1-extras-2")
+  id: number;         // ID real del producto en la DB
+  name: string;
+  price: number;      // Precio base
+  image: string | null;
+  quantity: number;
+  extras: ExtraItem[]; // NUEVO: Lista de extras elegidos
+}
+
 interface CartState {
   items: CartItem[];
-  addItem: (product: Omit<CartItem, 'quantity'>) => void;
-  removeItem: (id: number) => void;
-  updateQuantity: (id: number, quantity: number) => void;
+  // Ahora pedimos los extras al agregar (opcional por si compran bebidas sin extras)
+  addItem: (product: Omit<CartItem, 'quantity' | 'cartItemId' | 'extras'>, extras?: ExtraItem[]) => void;
+  removeItem: (cartItemId: string) => void;
+  updateQuantity: (cartItemId: string, quantity: number) => void;
   clearCart: () => void;
 }
 
-// 3. Creamos la tienda (store)
 export const useCartStore = create<CartState>((set) => ({
-  items: [], // El carrito empieza vacío
+  items: [],
 
-  addItem: (product) =>
+  addItem: (product, extras = []) =>
     set((state) => {
-      // Revisamos si la hamburguesa ya está en el carrito
-      const existingItem = state.items.find((item) => item.id === product.id);
+      // 1. Creamos una "huella digital" para agrupar productos exactamente iguales
+      // Si es la hamburguesa 1 sin extras, su cartItemId será "1-"
+      // Si tiene el extra 2, será "1-2"
+      const extrasKey = extras.map((e) => e.id).sort().join('-');
+      const cartItemId = `${product.id}-${extrasKey}`;
+
+      const existingItem = state.items.find((item) => item.cartItemId === cartItemId);
       
       if (existingItem) {
-        // Si ya existe, le sumamos 1 a la cantidad
+        // Si ya existe ESE producto con ESOS extras exactos, sumamos 1
         return {
           items: state.items.map((item) =>
-            item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+            item.cartItemId === cartItemId ? { ...item, quantity: item.quantity + 1 } : item
           ),
         };
       }
-      // Si es nueva, la agregamos con cantidad 1
-      return { items: [...state.items, { ...product, quantity: 1 }] };
+      
+      // Si es una combinación nueva, la agregamos
+      return { items: [...state.items, { ...product, cartItemId, extras, quantity: 1 }] };
     }),
 
-  removeItem: (id) =>
+  removeItem: (cartItemId) =>
     set((state) => ({
-      items: state.items.filter((item) => item.id !== id),
+      items: state.items.filter((item) => item.cartItemId !== cartItemId),
     })),
 
-  updateQuantity: (id, quantity) =>
+  updateQuantity: (cartItemId, quantity) =>
     set((state) => ({
       items: quantity === 0
-        // Si la cantidad llega a 0, la eliminamos del carrito
-        ? state.items.filter((item) => item.id !== id)
-        // Si no, actualizamos su número
-        : state.items.map((item) => (item.id === id ? { ...item, quantity } : item)),
+        ? state.items.filter((item) => item.cartItemId !== cartItemId)
+        : state.items.map((item) => (item.cartItemId === cartItemId ? { ...item, quantity } : item)),
     })),
 
   clearCart: () => set({ items: [] }),

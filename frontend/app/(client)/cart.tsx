@@ -5,45 +5,97 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../../src/api/api';
-import { useCartStore } from '../../src/store/cartStore';
+import { useCartStore, CartItem } from '../../src/store/cartStore';
 import * as WebBrowser from 'expo-web-browser';
 
 export default function CartScreen() {
   const router = useRouter();
   const { items, removeItem, updateQuantity, clearCart } = useCartStore();
   
-  // Estados de UI
   const [isDelivery, setIsDelivery] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Estados para los datos de la orden (se pre-cargan del perfil)
   const [orderAddress, setOrderAddress] = useState('');
   const [orderPhone, setOrderPhone] = useState('');
+  
+  // --- NUEVO: ESTADOS PARA EL SISTEMA DE PUNTOS ---
+  const [userPoints, setUserPoints] = useState(0);
+  const [selectedReward, setSelectedReward] = useState<string | null>(null);
 
-  // 1. Cargar datos del perfil al abrir el carrito
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
         const token = await SecureStore.getItemAsync('userToken');
         if (token) {
-          // Asumiendo que tienes un endpoint /users/profile o similar
-          const response = await api.get('/users/profile');
-          setOrderAddress(response.data.address || '');
-          setOrderPhone(response.data.phone || '');
+          // 1. Corregimos la ruta a /auth/perfil (que es la que usas en el perfil)
+          const profileRes = await api.get('/auth/perfil');
+          
+          // 2. Accedemos a .usuario.address y .usuario.phone como lo hace tu backend
+          setOrderAddress(profileRes.data.usuario.address || '');
+          setOrderPhone(profileRes.data.usuario.phone || '');
+          
+          // 3. Ahora que la petición anterior NO falla, llegamos a cargar los puntos
+          const rewardsRes = await api.get('/auth/recompensas');
+          setUserPoints(rewardsRes.data.puntosActuales || 0);
+          
         }
       } catch (error) {
-        console.log("No se pudo cargar el perfil para pre-llenado");
+        console.log("Error cargando datos en el carrito:", error);
       }
     };
     fetchUserProfile();
   }, []);
 
-  const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const deliveryCost = isDelivery ? 1250 : 0;
-  const finalTotal = totalAmount + deliveryCost;
+  const getItemTotalPrice = (item: CartItem) => {
+    const extrasTotal = item.extras?.reduce((sum, extra) => sum + extra.price, 0) || 0;
+    return item.price + extrasTotal;
+  };
 
-  // 2. Validar sesión y abrir Modal
+  // --- NUEVO: CÁLCULO DINÁMICO DE DESCUENTOS POR PREMIOS ---
+  let totalAmount = items.reduce((sum, item) => sum + (getItemTotalPrice(item) * item.quantity), 0);
+  let deliveryCost = isDelivery ? 1250 : 0;
+  let rewardDiscount = 0;
+
+  // Verificamos si la orden tiene hamburguesas (útil para el premio BURGER_GRATIS)
+  const hasBurger = items.some(item => item.price >= 5000);
+
+  if (selectedReward === 'DELIVERY_GRATIS') {
+    deliveryCost = 0;
+  } else if (selectedReward === 'BEBIDA_GRATIS') {
+    rewardDiscount = 1000;
+  } else if (selectedReward === 'BURGER_GRATIS' && hasBurger) {
+    rewardDiscount = 8490; // Valor promedio definido en el backend
+  } else if (selectedReward === 'BURGER_GRATIS' && !hasBurger) {
+    // Si intenta canjear burger gratis pero no lleva hamburguesas
+    setSelectedReward(null);
+    Alert.alert("Aviso", "Debes tener al menos una hamburguesa en el carrito para usar este premio.");
+  }
+
+  // Evitamos que el total sea negativo
+  let finalTotal = totalAmount + deliveryCost - rewardDiscount;
+  if (finalTotal < 0) finalTotal = 0;
+
+  // --- OPCIONES DE CANJE SEGÚN DOCUMENTO OFICIAL ---
+  const REWARD_OPTIONS = [
+    { id: 'BEBIDA_GRATIS', name: 'Bebida Gratis', points: 150, icon: 'glass' },
+    { id: 'DELIVERY_GRATIS', name: 'Delivery Gratis', points: 200, icon: 'motorcycle' },
+    { id: 'BURGER_GRATIS', name: 'Burger Gratis', points: 800, icon: 'cutlery' }
+  ];
+
+  const handleRewardSelection = (rewardId: string, requiredPoints: number) => {
+    if (userPoints < requiredPoints) {
+      Alert.alert('Puntos Insuficientes', `Necesitas ${requiredPoints} pts. Tienes ${userPoints} pts.`);
+      return;
+    }
+    // Toggle (si toca el mismo, se deselecciona)
+    if (selectedReward === rewardId) {
+      setSelectedReward(null);
+    } else {
+      setSelectedReward(rewardId);
+    }
+  };
+
   const handleOpenCheckout = async () => {
     const token = await SecureStore.getItemAsync('userToken');
     if (!token) {
@@ -56,7 +108,6 @@ export default function CartScreen() {
     setShowModal(true);
   };
 
-  // 3. Confirmar, crear orden y ABRIR WEBPAY
   const confirmOrder = async () => {
     if (isDelivery && !orderAddress) {
       Alert.alert('Error', 'Por favor ingresa una dirección de entrega.');
@@ -69,23 +120,25 @@ export default function CartScreen() {
 
     setIsProcessing(true);
     try {
-      // A. Creamos la orden (Estado PENDIENTE)
       const orderPayload = {
-        items: items.map(item => ({ productId: item.id, quantity: item.quantity })),
+        items: items.map(item => ({ 
+          productId: item.id, 
+          quantity: item.quantity,
+          extras: item.extras?.map(e => e.id) || []
+        })),
         deliveryAddress: isDelivery ? orderAddress : 'Retiro en Local',
         contactPhone: orderPhone,
+        rewardType: selectedReward // <--- ENVIAMOS EL PREMIO ELEGIDO AL BACKEND
       };
+      
       const orderResponse = await api.post('/orders', orderPayload);
       const newOrderId = orderResponse.data.id;
 
       setShowModal(false);
-      clearCart(); // El carrito ya cumplió su función, lo vaciamos
+      clearCart(); 
 
-      // B. Solicitamos a NestJS que hable con Transbank
-      // Tu backend ya sabe devolver la URL y el Token de Webpay
       const payResponse = await api.post(`/orders/${newOrderId}/pay`);
       
-      // Si el pago es 100% con puntos (total 0), el backend devuelve token 'GRATIS'
       if (payResponse.data.token === 'GRATIS') {
         Alert.alert('¡Pedido Gratis!', 'Tu pedido fue pagado completamente con tus puntos.', [
           { text: 'Ver mis pedidos', onPress: () => router.replace('/(client)/orders') }
@@ -93,13 +146,8 @@ export default function CartScreen() {
         return;
       }
 
-      // C. Armamos la URL exacta y abrimos el navegador interno
       const webpayUrl = `${payResponse.data.url}?token_ws=${payResponse.data.token}`;
-      
-      // Abre la pasarela de pago
       await WebBrowser.openBrowserAsync(webpayUrl);
-
-      // Una vez que el usuario cierre el navegador, lo mandamos a ver sus pedidos
       router.replace('/(client)/orders');
 
     } catch (error: any) {
@@ -128,7 +176,6 @@ export default function CartScreen() {
       <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false}>
         <Text className="text-white text-2xl font-black uppercase mb-4">Tu Pedido</Text>
 
-        {/* Selector de Entrega */}
         <View className="flex-row bg-neutral-900 rounded-xl p-1 mb-6 border border-neutral-800">
           <TouchableOpacity onPress={() => setIsDelivery(true)} className={`flex-1 py-3 rounded-lg flex-row justify-center items-center ${isDelivery ? 'bg-yellow-500' : ''}`}>
             <FontAwesome name="motorcycle" size={16} color={isDelivery ? 'black' : '#9CA3AF'} />
@@ -140,42 +187,109 @@ export default function CartScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Lista de Productos */}
         {items.map((item) => (
-          <View key={item.id} className="flex-row bg-neutral-900 p-3 rounded-2xl mb-4 border border-neutral-800">
+          <View key={item.cartItemId} className="flex-row bg-neutral-900 p-3 rounded-2xl mb-4 border border-neutral-800">
             <Image source={item.image ? { uri: item.image } : require('../../assets/images/menu/bbq.jpg')} className="w-16 h-16 rounded-xl bg-black" />
             <View className="flex-1 ml-4 justify-between">
-              <Text className="text-white font-black uppercase text-xs">{item.name}</Text>
-              <View className="flex-row justify-between items-center">
-                <Text className="text-yellow-500 font-bold">${item.price.toLocaleString('es-CL')}</Text>
+              <View>
+                <Text className="text-white font-black uppercase text-xs">{item.name}</Text>
+                {item.extras && item.extras.length > 0 && (
+                  <View className="mt-1">
+                    {item.extras.map(e => (
+                      <Text key={e.id} className="text-neutral-500 text-[10px] uppercase font-bold">+ {e.name}</Text>
+                    ))}
+                  </View>
+                )}
+              </View>
+              <View className="flex-row justify-between items-end mt-2">
+                <Text className="text-yellow-500 font-bold">${getItemTotalPrice(item).toLocaleString('es-CL')}</Text>
                 <View className="flex-row items-center bg-black rounded-lg p-1">
-                  <TouchableOpacity onPress={() => updateQuantity(item.id, item.quantity - 1)}><FontAwesome name="minus" size={10} color="white" className="px-2" /></TouchableOpacity>
+                  <TouchableOpacity onPress={() => updateQuantity(item.cartItemId, item.quantity - 1)}>
+                    <FontAwesome name="minus" size={10} color="white" className="px-2 py-1" />
+                  </TouchableOpacity>
                   <Text className="text-white font-bold mx-2">{item.quantity}</Text>
-                  <TouchableOpacity onPress={() => updateQuantity(item.id, item.quantity + 1)}><FontAwesome name="plus" size={10} color="#EAB308" className="px-2" /></TouchableOpacity>
+                  <TouchableOpacity onPress={() => updateQuantity(item.cartItemId, item.quantity + 1)}>
+                    <FontAwesome name="plus" size={10} color="#EAB308" className="px-2 py-1" />
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
           </View>
         ))}
 
-        {/* Resumen */}
-        <View className="mt-4 bg-neutral-900 p-4 rounded-2xl border border-neutral-800 mb-20">
-          <View className="flex-row justify-between mb-2"><Text className="text-neutral-400">Subtotal</Text><Text className="text-white">${totalAmount.toLocaleString('es-CL')}</Text></View>
-          <View className="flex-row justify-between mb-2"><Text className="text-neutral-400">Envío</Text><Text className="text-white">${deliveryCost.toLocaleString('es-CL')}</Text></View>
-          <View className="h-[1px] bg-neutral-800 my-2" />
-          <View className="flex-row justify-between"><Text className="text-white font-bold">Total</Text><Text className="text-yellow-500 font-bold">${finalTotal.toLocaleString('es-CL')}</Text></View>
+        {/* --- NUEVA SECCIÓN: RECOMPENSAS LAJAMBRE --- */}
+        <View className="mt-2 bg-neutral-900 p-5 rounded-3xl border border-yellow-500/30 mb-4 shadow-lg shadow-yellow-500/10 relative overflow-hidden">
+          <View className="absolute -right-6 -top-6 w-24 h-24 bg-yellow-500/10 rounded-full blur-xl" />
+          
+          <View className="flex-row justify-between items-end mb-4">
+            <View>
+              <Text className="text-yellow-500 font-black uppercase tracking-widest text-lg">Lajambre Club</Text>
+              <Text className="text-neutral-400 text-[10px] font-bold uppercase mt-1">Saldo Disponible</Text>
+            </View>
+            <View className="flex-row items-baseline">
+              <Text className="text-white text-3xl font-black">{userPoints}</Text>
+              <Text className="text-yellow-500 font-bold ml-1 text-xs">pts</Text>
+            </View>
+          </View>
+
+          <View className="space-y-3">
+            {REWARD_OPTIONS.map((reward) => {
+              const canAfford = userPoints >= reward.points;
+              const isSelected = selectedReward === reward.id;
+
+              return (
+                <TouchableOpacity 
+                  key={reward.id}
+                  onPress={() => handleRewardSelection(reward.id, reward.points)}
+                  activeOpacity={0.8}
+                  className={`flex-row items-center justify-between p-3 rounded-xl border ${isSelected ? 'bg-yellow-500/20 border-yellow-500' : 'bg-black border-neutral-800'} ${!canAfford && 'opacity-40'}`}
+                >
+                  <View className="flex-row items-center">
+                    <View className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${isSelected ? 'bg-yellow-500' : 'bg-neutral-800'}`}>
+                      <FontAwesome name={reward.icon as any} size={12} color={isSelected ? 'black' : '#9CA3AF'} />
+                    </View>
+                    <View>
+                      <Text className={`font-black uppercase text-xs ${isSelected ? 'text-yellow-500' : 'text-neutral-200'}`}>{reward.name}</Text>
+                      {isSelected && <Text className="text-yellow-500 text-[9px] font-bold uppercase mt-0.5">Premio Aplicado</Text>}
+                    </View>
+                  </View>
+                  
+                  <View className="bg-neutral-900 px-3 py-1.5 rounded-lg border border-neutral-800">
+                    <Text className={`font-black text-[10px] ${canAfford ? 'text-white' : 'text-neutral-600'}`}>{reward.points} pts</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Resumen Final */}
+        <View className="bg-neutral-900 p-5 rounded-3xl border border-neutral-800 mb-28">
+          <View className="flex-row justify-between mb-2"><Text className="text-neutral-400 font-bold">Subtotal</Text><Text className="text-white font-bold">${totalAmount.toLocaleString('es-CL')}</Text></View>
+          <View className="flex-row justify-between mb-2"><Text className="text-neutral-400 font-bold">Delivery</Text><Text className="text-white font-bold">${deliveryCost.toLocaleString('es-CL')}</Text></View>
+          
+          {rewardDiscount > 0 && (
+            <View className="flex-row justify-between mb-2">
+              <Text className="text-yellow-500 font-bold">Descuento Premio</Text>
+              <Text className="text-yellow-500 font-bold">-${rewardDiscount.toLocaleString('es-CL')}</Text>
+            </View>
+          )}
+
+          <View className="h-[1px] bg-neutral-800 my-3" />
+          <View className="flex-row justify-between items-end">
+            <Text className="text-white font-black text-lg uppercase">Total a Pagar</Text>
+            <Text className="text-yellow-500 font-black text-2xl">${finalTotal.toLocaleString('es-CL')}</Text>
+          </View>
         </View>
       </ScrollView>
 
-      {/* Botón Principal */}
       <View className="absolute bottom-0 w-full bg-neutral-900 p-6 border-t border-neutral-800">
-        <TouchableOpacity onPress={handleOpenCheckout} className="bg-yellow-500 rounded-xl py-4 flex-row justify-center items-center">
-          <Text className="text-black text-lg font-black uppercase mr-2">Ir a Pagar</Text>
-          <FontAwesome name="arrow-right" size={18} color="black" />
+        <TouchableOpacity onPress={handleOpenCheckout} className="bg-yellow-500 rounded-2xl py-4 flex-row justify-center items-center shadow-lg shadow-yellow-500/20 active:bg-yellow-600">
+          <Text className="text-black text-lg font-black uppercase mr-2 tracking-widest">Ir a Pagar</Text>
+          <FontAwesome name="arrow-right" size={16} color="black" />
         </TouchableOpacity>
       </View>
 
-      {/* --- MODAL DE CONFIRMACIÓN (OPCIÓN B) --- */}
       <Modal visible={showModal} animationType="slide" transparent={true}>
         <View className="flex-1 justify-end bg-black/80">
           <View className="bg-neutral-900 rounded-t-3xl p-6 border-t border-yellow-500/30">
@@ -206,10 +320,10 @@ export default function CartScreen() {
 
             <TouchableOpacity 
               onPress={confirmOrder} disabled={isProcessing}
-              className="bg-yellow-500 py-5 rounded-2xl items-center shadow-lg shadow-yellow-500/20"
+              className="bg-yellow-500 py-5 rounded-2xl items-center shadow-lg shadow-yellow-500/20 active:bg-yellow-600"
             >
               {isProcessing ? <ActivityIndicator color="black" /> : (
-                <Text className="text-black font-black uppercase text-lg">Confirmar Pedido • ${finalTotal.toLocaleString('es-CL')}</Text>
+                <Text className="text-black font-black uppercase text-lg tracking-widest">Pagar • ${finalTotal.toLocaleString('es-CL')}</Text>
               )}
             </TouchableOpacity>
           </View>

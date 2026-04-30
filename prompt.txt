@@ -1,0 +1,30 @@
+Actúa como un Tech Lead y Arquitecto de Software Senior. A continuación te presentaré el estado actual y la arquitectura de "Lajambre", una aplicación Full-Stack de E-commerce y Delivery para una hamburguesería. 
+
+Basándote en este contexto, necesito que generes un reporte técnico detallado cumpliendo con 4 puntos específicos que detallaré al final.
+
+### CONTEXTO DEL PROYECTO Y STACK TÉCNICO
+* **Backend:** NestJS (TypeScript), PostgreSQL, Prisma ORM. Autenticación con JWT (Passport) y Bcrypt. Roles (ADMIN/USER).
+* **Frontend (Mobile App):** React Native con Expo Router. Gestión de estado con Zustand (Carrito) y TanStack Query (Server state). Estilos con NativeWind y animaciones con Reanimated.
+* **Pasarela de Pagos:** Integración oficial con Transbank Webpay Plus (Generación de token, redirección al navegador web y confirmación en backend).
+
+### LÓGICA DE NEGOCIO Y MÓDULOS IMPLEMENTADOS
+1.  **Autenticación y Seguridad:** Registro, Login y validación estricta de correo electrónico (`isVerified`) usando Nodemailer y un `verificationToken` nativo de Node (Crypto). Guardia de roles (`@Roles('ADMIN')`) para proteger rutas críticas.
+2.  **Menú y Pedidos (App Cliente):** * Menú dinámico segmentado por categorías reales de la base de datos.
+    * Modal de Extras: Los clientes pueden agregar ingredientes (ej. Carne Extra, Salsa) a su producto base.
+    * Carrito Inteligente (Zustand): Usa una "Huella Digital" (`cartItemId`) para diferenciar productos iguales pero con distintos extras, calculando el subtotal dinámicamente.
+3.  **Sistema de Fidelización (Lajambre Club):**
+    * Acumulación: 1 punto por cada $100 gastados (x1.5 los días martes). Los puntos vencen a los 90 días mediante un Cron Job en NestJS.
+    * Niveles Gamificados: Bronce, Plata y Oro, basados en el historial total de puntos ganados (para que el cliente no baje de nivel al canjear).
+    * Canje de Premios: Sistema estilo cupón de descuento final en la boleta. Premios definidos: Bebida Gratis (150pts), Delivery Gratis (200pts), Burger Gratis (800pts).
+4.  **Panel de Administración (App Admin):**
+    * Gestor de Menú: Permite editar productos, precios, fotos y un switch en tiempo real (`isAvailable`) para encender/apagar stock, lo que oculta el producto automáticamente del menú del cliente.
+    * Monitor de Cocina (Live Orders): Tablero Kanban que consulta los pedidos y permite cambiar el estado de la orden (Pagado -> Preparando -> En Camino -> Entregado).
+
+### ENTREGABLES ESPERADOS
+Por favor, analiza esta arquitectura y entrégame lo siguiente:
+1.  **Resumen Extenso:** Un resumen detallado de la solución construida, destacando los flujos principales sin omitir detalles de la arquitectura. Escribelo en el archivo resumen.txt
+2.  **Veredicto de Completitud:** ¿Consideras que el proyecto está al 100% terminado para un MVP (Producto Mínimo Viable)? Justifica tu respuesta.
+3.  **Gaps y Faltantes:** Nombra cosas, validaciones, flujos o casos borde que podrían faltar según los requerimientos clásicos de un sistema de delivery moderno (Ej. ¿Qué pasa si Transbank falla? ¿Hay notificaciones push?, etc.).
+4.  **Veredicto de Producción:** ¿Es este código e infraestructura válidos y seguros para hacer un despliegue a producción real. Entrégame un dictamen final "Go / No-Go".
+
+IMPORTANTE NO MODIFIQUES NIGUN ARCHIVO

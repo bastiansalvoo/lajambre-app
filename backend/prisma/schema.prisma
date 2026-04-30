@@ -16,6 +16,7 @@ enum Role {
 enum OrderStatus {
   PENDIENTE
   PAGADO
+  PREPARANDO
   EN_CAMINO
   ENTREGADO
   CANCELADO

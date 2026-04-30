@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
 import { Prisma, PointTransactionType } from '@prisma/client';
 import { Cron } from '@nestjs/schedule';
-import * as crypto from 'crypto'; // <-- Importar la librería nativa de Node para crear códigos seguros
+import * as crypto from 'crypto';
 
 @Injectable()
 export class UsersService {
@@ -13,10 +13,8 @@ export class UsersService {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(data.password, salt);
 
-    // 👇 Generamos un código secreto de 40 letras/números
     const verificationToken = crypto.randomBytes(20).toString('hex');
 
-    // Guardamos al usuario "congelado" y con el código secreto
     return this.prisma.user.create({
       data: {
         ...data,
@@ -37,58 +35,55 @@ export class UsersService {
       include: {
         pointTransactions: {
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 10, // Para el historial visual de la app
         },
       },
     });
 
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
-    const pts = user.pointsBalance;
+    const pts = user.pointsBalance; // Saldo real para gastar
 
-    // 🏆 Definición de los nuevos premios de Angelo
+    // 👇 SOLUCIÓN: Calculamos los puntos HISTÓRICOS (solo lo que ha ganado)
+    const transaccionesHistoricas = await this.prisma.pointTransaction.findMany(
+      {
+        where: {
+          userId: userId,
+          type: PointTransactionType.EARNED, // Solo sumamos lo ganado, ignoramos los canjes
+        },
+      },
+    );
+
+    const puntosHistoricos = transaccionesHistoricas.reduce(
+      (total, tx) => total + tx.points,
+      0,
+    );
+
+    // 🏆 PREMIOS OFICIALES LAJAMBRE
     const listaPremios = [
-      { id: 'queso', nombre: 'Queso Extra', pts: 120, icono: '🧀' },
-      { id: 'bebida', nombre: 'Bebida Gratis', pts: 150, icono: '🥤' },
+      { id: 'BEBIDA_GRATIS', nombre: 'Bebida Gratis', pts: 150, icono: '🥤' },
       {
-        id: 'papas',
-        nombre: 'Papas Fritas Extra (130g)',
-        pts: 180,
-        icono: '🍟',
-      },
-      { id: 'delivery', nombre: 'Delivery Gratis', pts: 200, icono: '🚚' },
-      { id: 'tocino', nombre: 'Tocino Extra', pts: 200, icono: '🥓' },
-      { id: 'carne', nombre: 'Carne Extra', pts: 250, icono: '🥩' },
-      { id: 'dos_bebidas', nombre: '2 Bebidas', pts: 250, icono: '🥤🥤' },
-      {
-        id: 'upgrade',
-        nombre: 'Upgrade de Hamburguesa',
-        pts: 300,
-        icono: '🔝',
+        id: 'DELIVERY_GRATIS',
+        nombre: 'Delivery Gratis',
+        pts: 200,
+        icono: '🚚',
       },
       {
-        id: 'dos_por_uno',
-        nombre: 'Burger 2x1 (comprando 1)',
-        pts: 600,
-        icono: '👯',
-      },
-      {
-        id: 'burger_gratis',
+        id: 'BURGER_GRATIS',
         nombre: 'Hamburguesa Gratis',
         pts: 800,
         icono: '🍔',
       },
     ];
 
-    // 🧠 GAMIFICACIÓN: Niveles de fidelidad
+    // 🧠 GAMIFICACIÓN: Basado en PUNTOS HISTÓRICOS (Ya no bajan de nivel)
     let nivel = 'Bronce 🥉';
-    if (pts >= 1500) nivel = 'Oro 👑';
-    else if (pts >= 500) nivel = 'Plata 🥈';
+    if (puntosHistoricos >= 1500) nivel = 'Oro 👑';
+    else if (puntosHistoricos >= 500) nivel = 'Plata 🥈';
 
     return {
-      puntosActuales: pts,
-      nivelActual: nivel,
-      // Mapeamos los premios para que el frontend sepa qué mostrar
+      puntosActuales: pts, // Saldo para gastar en el carrito
+      nivelActual: nivel, // Nivel que no se pierde al gastar
       recompensas: listaPremios.map((p) => ({
         id: p.id,
         nombre: p.nombre,
