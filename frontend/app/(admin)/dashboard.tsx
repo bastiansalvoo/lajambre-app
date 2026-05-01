@@ -11,6 +11,7 @@ export default function DashboardScreen() {
   const router = useRouter();
 
   const handleLogout = async () => {
+    // TODO: Refactorizar Alert interactiva
     Alert.alert(
       "Cerrar Sesión",
       "¿Estás seguro que deseas salir del panel de administración?",

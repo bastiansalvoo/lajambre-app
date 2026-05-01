@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Linking } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -45,7 +46,11 @@ export default function LiveOrdersScreen() {
       await api.patch(`/orders/${orderId}/status`, { status: nuevoEstado });
       fetchAdminOrders(); 
     } catch (error) {
-      Alert.alert('Error', 'No se pudo actualizar el estado del pedido');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'No se pudo actualizar el estado del pedido'
+      });
     }
   };
 

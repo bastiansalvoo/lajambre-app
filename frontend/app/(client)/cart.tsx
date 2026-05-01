@@ -1,4 +1,5 @@
 import { View, Text, ScrollView, TouchableOpacity, Image, Alert, Modal, TextInput, ActivityIndicator } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import { useState, useEffect, useCallback } from 'react';
@@ -71,7 +72,11 @@ export default function CartScreen() {
   } else if (selectedReward === 'BURGER_GRATIS' && !hasBurger) {
     // Si intenta canjear burger gratis pero no lleva hamburguesas
     setSelectedReward(null);
-    Alert.alert("Aviso", "Debes tener al menos una hamburguesa en el carrito para usar este premio.");
+    Toast.show({
+      type: 'error',
+      text1: 'Aviso',
+      text2: 'Debes tener al menos una hamburguesa en el carrito para usar este premio.'
+    });
   }
 
   // Evitamos que el total sea negativo
@@ -87,7 +92,11 @@ export default function CartScreen() {
 
   const handleRewardSelection = (rewardId: string, requiredPoints: number) => {
     if (userPoints < requiredPoints) {
-      Alert.alert('Puntos Insuficientes', `Necesitas ${requiredPoints} pts. Tienes ${userPoints} pts.`);
+      Toast.show({
+        type: 'error',
+        text1: 'Puntos Insuficientes',
+        text2: `Necesitas ${requiredPoints} pts. Tienes ${userPoints} pts.`
+      });
       return;
     }
     // Toggle (si toca el mismo, se deselecciona)
@@ -101,6 +110,7 @@ export default function CartScreen() {
   const handleOpenCheckout = async () => {
     const token = await SecureStore.getItemAsync('userToken');
     if (!token) {
+      // TODO: Refactorizar Alert interactiva
       Alert.alert('Identifícate', 'Inicia sesión para continuar con tu pedido.', [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Ir al Login', onPress: () => router.push('/(auth)/login') }
@@ -112,11 +122,19 @@ export default function CartScreen() {
 
   const confirmOrder = async () => {
     if (isDelivery && !orderAddress) {
-      Alert.alert('Error', 'Por favor ingresa una dirección de entrega.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Por favor ingresa una dirección de entrega.'
+      });
       return;
     }
     if (!orderPhone) {
-      Alert.alert('Error', 'Necesitamos un teléfono de contacto.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Necesitamos un teléfono de contacto.'
+      });
       return;
     }
 
@@ -145,6 +163,7 @@ export default function CartScreen() {
       const payResponse = await api.post(`/orders/${newOrderId}/pay`);
       
       if (payResponse.data.token === 'GRATIS') {
+        // TODO: Refactorizar Alert interactiva
         Alert.alert('¡Pedido Gratis!', 'Tu pedido fue pagado completamente con tus puntos.', [
           { text: 'Ver mis pedidos', onPress: () => router.replace('/(client)/orders') }
         ]);
@@ -158,7 +177,11 @@ export default function CartScreen() {
     } catch (error: any) {
       console.error("Error en el flujo de pago:", error);
       const msg = error.response?.data?.message || "Error al procesar pedido o conectar con Webpay";
-      Alert.alert('Error', Array.isArray(msg) ? msg[0] : msg);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: Array.isArray(msg) ? msg[0] : msg
+      });
     } finally {
       setIsProcessing(false);
     }

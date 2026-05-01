@@ -7,10 +7,12 @@ import 'react-native-reanimated';
 import "../global.css";
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { View, Text, Dimensions } from 'react-native';
+// 👇 1. Importamos la librería del Toast
+import Toast from 'react-native-toast-message';
 
 export { ErrorBoundary } from 'expo-router';
 
-// 👇 1. Cambiamos esto a 'index' (la raíz)
 export const unstable_settings = {
   initialRouteName: 'index',
 };
@@ -18,6 +20,28 @@ export const unstable_settings = {
 const queryClient = new QueryClient();
 
 SplashScreen.preventAutoHideAsync();
+
+// 👇 2. Creamos el diseño personalizado (Modo Oscuro Lajambre)
+const toastConfig = {
+  success: (props: any) => (
+    <View className="w-[85%] bg-neutral-900 border-2 border-yellow-500 rounded-3xl p-6 items-center shadow-2xl shadow-yellow-500/40">
+      <View className="w-16 h-16 bg-yellow-500 rounded-full items-center justify-center mb-4">
+        <FontAwesome name="check" size={32} color="black" />
+      </View>
+      <Text className="text-yellow-500 font-black uppercase text-lg tracking-widest text-center">{props.text1}</Text>
+      {props.text2 && <Text className="text-white font-bold text-sm text-center mt-2 leading-5">{props.text2}</Text>}
+    </View>
+  ),
+  error: (props: any) => (
+    <View className="w-[85%] bg-neutral-900 border-2 border-red-500 rounded-3xl p-6 items-center shadow-2xl shadow-red-500/40">
+      <View className="w-16 h-16 bg-red-500 rounded-full items-center justify-center mb-4">
+        <FontAwesome name="warning" size={32} color="white" />
+      </View>
+      <Text className="text-red-500 font-black uppercase text-lg tracking-widest text-center">{props.text1}</Text>
+      {props.text2 && <Text className="text-white font-bold text-sm text-center mt-2 leading-5">{props.text2}</Text>}
+    </View>
+  ),
+};
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -40,16 +64,26 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Stack>
-        {/* 👇 2. Agregamos el index explícitamente para que Expo no lo ignore */}
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(client)" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(admin)" options={{ headerShown: false }} />
-        <Stack.Screen name="webpay-result" options={{ title: 'Resultado del Pago' }} />
-        <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
-      </Stack>
-    </QueryClientProvider>
+    // 👇 3. Envolvemos la app en un fragmento <> para poder poner el Toast al mismo nivel
+    <>
+      <QueryClientProvider client={queryClient}>
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(client)" options={{ headerShown: false }} />
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+          <Stack.Screen name="webpay-result" options={{ title: 'Resultado del Pago' }} />
+          <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
+        </Stack>
+      </QueryClientProvider>
+      
+      {/* 👇 4. ¡EL TOAST MAESTRO! Ahora sí aparecerán las alertas por encima de la app */}
+      <Toast 
+        config={toastConfig} 
+        position="bottom" 
+        bottomOffset={Dimensions.get('window').height / 2 - 100}
+        visibilityTime={3500}
+      />
+    </>
   );
 }

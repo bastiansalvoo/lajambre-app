@@ -1,30 +1,31 @@
-Actúa como un Tech Lead y Arquitecto de Software Senior. A continuación te presentaré el estado actual y la arquitectura de "Lajambre", una aplicación Full-Stack de E-commerce y Delivery para una hamburguesería. 
+Actúa como un desarrollador Senior en React Native (Expo) y ayúdame a refactorizar la interfaz de usuario de mi aplicación frontend.
 
-Basándote en este contexto, necesito que generes un reporte técnico detallado cumpliendo con 4 puntos específicos que detallaré al final.
+OBJETIVO:
+Reemplazar todas las instancias del componente nativo `Alert.alert` de 'react-native' por la librería personalizada `react-native-toast-message`.
 
-### CONTEXTO DEL PROYECTO Y STACK TÉCNICO
-* **Backend:** NestJS (TypeScript), PostgreSQL, Prisma ORM. Autenticación con JWT (Passport) y Bcrypt. Roles (ADMIN/USER).
-* **Frontend (Mobile App):** React Native con Expo Router. Gestión de estado con Zustand (Carrito) y TanStack Query (Server state). Estilos con NativeWind y animaciones con Reanimated.
-* **Pasarela de Pagos:** Integración oficial con Transbank Webpay Plus (Generación de token, redirección al navegador web y confirmación en backend).
+ALCANCE:
+Analiza todos los archivos `.tsx` y `.ts` dentro del directorio `frontend/app/` y `frontend/src/`.
+Excluye de este refactoring el archivo `frontend/app/_layout.tsx` (ya que ahí reside la configuración global que no debe ser tocada).
 
-### LÓGICA DE NEGOCIO Y MÓDULOS IMPLEMENTADOS
-1.  **Autenticación y Seguridad:** Registro, Login y validación estricta de correo electrónico (`isVerified`) usando Nodemailer y un `verificationToken` nativo de Node (Crypto). Guardia de roles (`@Roles('ADMIN')`) para proteger rutas críticas.
-2.  **Menú y Pedidos (App Cliente):** * Menú dinámico segmentado por categorías reales de la base de datos.
-    * Modal de Extras: Los clientes pueden agregar ingredientes (ej. Carne Extra, Salsa) a su producto base.
-    * Carrito Inteligente (Zustand): Usa una "Huella Digital" (`cartItemId`) para diferenciar productos iguales pero con distintos extras, calculando el subtotal dinámicamente.
-3.  **Sistema de Fidelización (Lajambre Club):**
-    * Acumulación: 1 punto por cada $100 gastados (x1.5 los días martes). Los puntos vencen a los 90 días mediante un Cron Job en NestJS.
-    * Niveles Gamificados: Bronce, Plata y Oro, basados en el historial total de puntos ganados (para que el cliente no baje de nivel al canjear).
-    * Canje de Premios: Sistema estilo cupón de descuento final en la boleta. Premios definidos: Bebida Gratis (150pts), Delivery Gratis (200pts), Burger Gratis (800pts).
-4.  **Panel de Administración (App Admin):**
-    * Gestor de Menú: Permite editar productos, precios, fotos y un switch en tiempo real (`isAvailable`) para encender/apagar stock, lo que oculta el producto automáticamente del menú del cliente.
-    * Monitor de Cocina (Live Orders): Tablero Kanban que consulta los pedidos y permite cambiar el estado de la orden (Pagado -> Preparando -> En Camino -> Entregado).
+INSTRUCCIONES DE REFACTORING:
+1. Gestión de Importaciones:
+   - Elimina `Alert` de las importaciones de `react-native` en los archivos donde se utilice.
+   - Si `Alert` era lo único que se importaba de `react-native`, elimina la línea completa.
+   - Añade la importación `import Toast from 'react-native-toast-message';` en la parte superior de los archivos modificados.
 
-### ENTREGABLES ESPERADOS
-Por favor, analiza esta arquitectura y entrégame lo siguiente:
-1.  **Resumen Extenso:** Un resumen detallado de la solución construida, destacando los flujos principales sin omitir detalles de la arquitectura. Escribelo en el archivo resumen.txt
-2.  **Veredicto de Completitud:** ¿Consideras que el proyecto está al 100% terminado para un MVP (Producto Mínimo Viable)? Justifica tu respuesta.
-3.  **Gaps y Faltantes:** Nombra cosas, validaciones, flujos o casos borde que podrían faltar según los requerimientos clásicos de un sistema de delivery moderno (Ej. ¿Qué pasa si Transbank falla? ¿Hay notificaciones push?, etc.).
-4.  **Veredicto de Producción:** ¿Es este código e infraestructura válidos y seguros para hacer un despliegue a producción real. Entrégame un dictamen final "Go / No-Go".
+2. Transformación de Código:
+   - Encuentra cada bloque de código que utilice la sintaxis: `Alert.alert('Titulo', 'Mensaje')` o `Alert.alert('Titulo', 'Mensaje', [botones])`.
+   - Reemplázalo por la siguiente estructura:
+     Toast.show({
+       type: 'determinar_tipo',
+       text1: 'Titulo',
+       text2: 'Mensaje'
+     });
 
-IMPORTANTE NO MODIFIQUES NIGUN ARCHIVO
+3. Lógica Condicional para el 'type' del Toast:
+   - Infiere el tipo de alerta basándote en el Título o el contexto del mensaje.
+   - Usa `type: 'error'` si el título o mensaje contiene palabras como: "Error", "Insuficiente", "Denegado", "Fallo", "Rechazado", "Identifícate".
+   - Usa `type: 'success'` si el título o mensaje contiene palabras como: "Éxito", "Gratis", "Confirmado", "Completado".
+   - Si el `Alert.alert` original tenía un arreglo de botones (ej. un botón para "Cancelar" y otro para "Ir al Login" o "Eliminar"), NO lo cambies a Toast automáticamente. Añade un comentario TODO `// TODO: Refactorizar Alert interactiva` arriba de esa línea, ya que los Toasts no son modales interactivos y requieren revisión manual.
+
+Ejecuta el escaneo y aplica los cambios en el código directamente.

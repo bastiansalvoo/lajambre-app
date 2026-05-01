@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
@@ -18,12 +19,20 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     // Validaciones básicas antes de disparar la petición
     if (!name || !email || !password || !phone) {
-      Alert.alert('Atención', 'Todos los campos son obligatorios para tu registro.');
+      Toast.show({
+        type: 'error',
+        text1: 'Atención',
+        text2: 'Todos los campos son obligatorios para tu registro.'
+      });
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Seguridad', 'La contraseña debe tener al menos 6 caracteres.');
+      Toast.show({
+        type: 'error',
+        text1: 'Seguridad',
+        text2: 'La contraseña debe tener al menos 6 caracteres.'
+      });
       return;
     }
 
@@ -38,6 +47,7 @@ export default function RegisterScreen() {
       });
 
       // Si llegamos aquí, el backend ya guardó al usuario y envió el correo
+      // TODO: Refactorizar Alert interactiva
       Alert.alert(
         '¡Casi listo!', 
         'Hemos enviado un correo de verificación a tu bandeja de entrada. Por favor, confirma tu cuenta para poder iniciar sesión.',
@@ -47,7 +57,11 @@ export default function RegisterScreen() {
     } catch (error: any) {
       console.error("Error de Registro:", error);
       const msg = error.response?.data?.message || "No se pudo procesar el registro.";
-      Alert.alert('Error', Array.isArray(msg) ? msg[0] : msg);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: Array.isArray(msg) ? msg[0] : msg
+      });
     } finally {
       setIsLoading(false);
     }

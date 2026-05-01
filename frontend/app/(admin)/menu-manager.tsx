@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, ScrollView, TouchableOpacity, Image, 
-  ActivityIndicator, Alert, Modal, TextInput, Switch 
+  ActivityIndicator, Modal, TextInput, Switch 
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -118,7 +119,11 @@ export default function MenuManagerScreen() {
     },
     onError: (error: any) => {
       const msg = error.response?.data?.message || "Error al guardar";
-      Alert.alert("Error", Array.isArray(msg) ? msg[0] : msg);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: Array.isArray(msg) ? msg[0] : msg
+      });
     }
   });
 
@@ -127,7 +132,11 @@ export default function MenuManagerScreen() {
       await api.patch(`/products/${product.id}`, { isAvailable: !product.isAvailable });
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
     } catch (error) {
-      Alert.alert("Error", "No se pudo cambiar el estado del producto.");
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'No se pudo cambiar el estado del producto.'
+      });
     }
   };
 

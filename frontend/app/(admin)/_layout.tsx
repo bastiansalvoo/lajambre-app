@@ -1,5 +1,6 @@
 import { Stack, useRouter } from 'expo-router';
-import { TouchableOpacity, Text, View, ActivityIndicator, Alert } from 'react-native';
+import { TouchableOpacity, Text, View, ActivityIndicator } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
@@ -17,7 +18,11 @@ export default function AdminLayout() {
         
         if (role !== 'ADMIN') {
           // Si es un USER normal (o no hay rol), lo expulsamos a la tienda
-          Alert.alert('Acceso Restringido', 'Esta área es exclusiva para el personal de La Jambre.');
+          Toast.show({
+            type: 'error',
+            text1: 'Acceso Restringido',
+            text2: 'Esta área es exclusiva para el personal de La Jambre.'
+          });
           router.replace('/(client)');
         } else {
           // Si es ADMIN, le damos pase libre
