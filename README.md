@@ -76,14 +76,6 @@ npx expo start
 
 ---
 
-## 🗺️ Roadmap de Desarrollo
-- [ ] Implementación de Notificaciones Push (FCM).
-- [ ] Integración con Google Maps API para geolocalización de pedidos.
-- [ ] Panel de analíticas de ventas para el administrador.
-- [ ] Soporte para cupones de descuento manuales.
-
----
-
 ## 📄 Licencia
 Este proyecto está bajo la licencia MIT.
 
