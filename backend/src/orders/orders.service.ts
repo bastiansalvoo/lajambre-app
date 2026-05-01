@@ -377,7 +377,8 @@ export class OrdersService {
       include: {
         items: {
           include: {
-            product: true, // 👈 Esto nos permite mostrar los nombres de lo que compró
+            product: true,
+            extras: { include: { extra: true } }, // 👈 ESTA LÍNEA ES NUEVA (Recuerda los extras)
           },
         },
       },

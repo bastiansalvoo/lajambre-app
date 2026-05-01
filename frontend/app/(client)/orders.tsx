@@ -5,11 +5,16 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../../src/api/api';
+// 👇 Importamos el cerebro del carrito
+import { useCartStore } from '../../src/store/cartStore';
 
 export default function OrdersScreen() {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // 👇 Extraemos las funciones para limpiar y llenar el carrito
+  const { clearCart, addItem } = useCartStore();
 
   useFocusEffect(
     useCallback(() => {
@@ -40,12 +45,19 @@ export default function OrdersScreen() {
     }
   };
 
+  // 👇 Añadidos los estados de cocina para que se vean geniales en la app
   const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'PAGADO': 
-        return { bg: 'bg-green-500', text: 'text-black', icon: 'check' };
       case 'PENDIENTE': 
         return { bg: 'bg-yellow-500', text: 'text-black', icon: 'clock-o' };
+      case 'PAGADO': 
+        return { bg: 'bg-green-500', text: 'text-black', icon: 'check' };
+      case 'PREPARANDO': 
+        return { bg: 'bg-orange-500', text: 'text-black', icon: 'fire' };
+      case 'EN_CAMINO': 
+        return { bg: 'bg-blue-500', text: 'text-white', icon: 'motorcycle' };
+      case 'ENTREGADO': 
+        return { bg: 'bg-green-700', text: 'text-white', icon: 'home' };
       case 'CANCELADO': 
         return { bg: 'bg-red-500', text: 'text-white', icon: 'times' };
       default: 
@@ -58,6 +70,31 @@ export default function OrdersScreen() {
     return date.toLocaleDateString('es-CL', {
       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
+  };
+
+  // 👇 Función Mágica: Desarma la orden vieja y la mete al carrito nuevo
+  const handleReorder = (order: any) => {
+    clearCart(); // Vaciamos por si tenía algo a medio armar
+    
+    order.items.forEach((item: any) => {
+      const product = {
+        id: item.product.id,
+        name: item.product.name,
+        price: item.product.price, 
+        image: item.product.image
+      };
+      
+      // Mapeamos los extras si es que la orden los tenía
+      const extras = item.extras?.map((e: any) => e.extra) || [];
+
+      // Como nuestro cerebro agrega de a 1, hacemos un loop por la cantidad
+      for (let i = 0; i < item.quantity; i++) {
+        addItem(product, extras);
+      }
+    });
+
+    // Lo mandamos directo a la pantalla de pago
+    router.push('/(client)/cart');
   };
 
   if (isLoading) {
@@ -94,6 +131,9 @@ export default function OrdersScreen() {
           {orders.map((order) => {
             const statusConfig = getStatusStyle(order.status);
             
+            // 👇 Variable inteligente para decidir el estilo y texto del botón
+            const isFailedOrPending = order.status === 'CANCELADO' || order.status === 'PENDIENTE';
+            
             return (
               <View key={order.id} className="bg-neutral-900 rounded-3xl mb-6 p-5 border border-neutral-800">
                 
@@ -126,9 +166,17 @@ export default function OrdersScreen() {
                           <Text className="text-yellow-500 font-black text-xs">{item.quantity}</Text>
                           <Text className="text-neutral-500 font-bold text-[10px] ml-0.5">x</Text>
                         </View>
-                        <Text className="text-neutral-200 font-bold text-sm tracking-wide" numberOfLines={1}>
-                          {item.product?.name || 'Producto eliminado'}
-                        </Text>
+                        <View>
+                          <Text className="text-neutral-200 font-bold text-sm tracking-wide" numberOfLines={1}>
+                            {item.product?.name || 'Producto eliminado'}
+                          </Text>
+                          {/* 👇 Mostramos visualmente los extras si los tenía */}
+                          {item.extras && item.extras.length > 0 && (
+                            <Text className="text-neutral-500 text-[10px] uppercase font-bold mt-0.5">
+                              + {item.extras.map((e: any) => e.extra.name).join(', ')}
+                            </Text>
+                          )}
+                        </View>
                       </View>
                       <Text className="text-neutral-400 font-bold text-sm">
                         ${(item.priceAtPurchase * item.quantity).toLocaleString('es-CL')}
@@ -154,6 +202,17 @@ export default function OrdersScreen() {
                     <Text className="text-yellow-500 font-black text-2xl">${order.total.toLocaleString('es-CL')}</Text>
                   </View>
                 </View>
+
+                {/* 👇 EL BOTÓN SALVAVIDAS SIEMPRE PRESENTE Y ADAPTABLE */}
+                <TouchableOpacity 
+                  onPress={() => handleReorder(order)}
+                  className={`mt-6 py-3.5 rounded-xl flex-row justify-center items-center border ${isFailedOrPending ? 'bg-red-500/10 border-red-500/30 active:bg-red-500/20' : 'bg-neutral-800 border-neutral-700 active:bg-neutral-700'}`}
+                >
+                  <FontAwesome name="refresh" size={14} color={isFailedOrPending ? "#EF4444" : "#EAB308"} />
+                  <Text className={`font-black uppercase text-xs ml-2 tracking-widest ${isFailedOrPending ? 'text-red-500' : 'text-yellow-500'}`}>
+                    {isFailedOrPending ? 'Reintentar Pago' : 'Volver a Pedir'}
+                  </Text>
+                </TouchableOpacity>
 
               </View>
             );

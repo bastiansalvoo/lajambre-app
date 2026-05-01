@@ -1,12 +1,14 @@
 import { View, Text, ScrollView, TouchableOpacity, Image, Alert, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../../src/api/api';
 import { useCartStore, CartItem } from '../../src/store/cartStore';
 import * as WebBrowser from 'expo-web-browser';
+import { useFocusEffect } from '@react-navigation/native';
+
 
 export default function CartScreen() {
   const router = useRouter();
@@ -23,29 +25,29 @@ export default function CartScreen() {
   const [userPoints, setUserPoints] = useState(0);
   const [selectedReward, setSelectedReward] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const token = await SecureStore.getItemAsync('userToken');
-        if (token) {
-          // 1. Corregimos la ruta a /auth/perfil (que es la que usas en el perfil)
-          const profileRes = await api.get('/auth/perfil');
-          
-          // 2. Accedemos a .usuario.address y .usuario.phone como lo hace tu backend
-          setOrderAddress(profileRes.data.usuario.address || '');
-          setOrderPhone(profileRes.data.usuario.phone || '');
-          
-          // 3. Ahora que la petición anterior NO falla, llegamos a cargar los puntos
-          const rewardsRes = await api.get('/auth/recompensas');
-          setUserPoints(rewardsRes.data.puntosActuales || 0);
-          
+  useFocusEffect(
+    useCallback(() => {
+      const fetchUserProfile = async () => {
+        try {
+          const token = await SecureStore.getItemAsync('userToken');
+          if (token) {
+            // 1. Cargamos perfil para teléfono/dirección
+            const profileRes = await api.get('/auth/perfil');
+            setOrderAddress(profileRes.data.usuario.address || '');
+            setOrderPhone(profileRes.data.usuario.phone || '');
+            
+            // 2. Cargamos saldo de puntos fresco
+            const rewardsRes = await api.get('/auth/recompensas');
+            setUserPoints(rewardsRes.data.puntosActuales || 0);
+          }
+        } catch (error) {
+          console.log("Error cargando datos en el carrito:", error);
         }
-      } catch (error) {
-        console.log("Error cargando datos en el carrito:", error);
-      }
-    };
-    fetchUserProfile();
-  }, []);
+      };
+      
+      fetchUserProfile();
+    }, [])
+  );
 
   const getItemTotalPrice = (item: CartItem) => {
     const extrasTotal = item.extras?.reduce((sum, extra) => sum + extra.price, 0) || 0;
@@ -120,15 +122,18 @@ export default function CartScreen() {
 
     setIsProcessing(true);
     try {
+      // 📦 PAQUETE CORREGIDO
       const orderPayload = {
         items: items.map(item => ({ 
           productId: item.id, 
           quantity: item.quantity,
-          extras: item.extras?.map(e => e.id) || []
+          // Corrección: extraIds en lugar de extras
+          extraIds: item.extras?.map(e => e.id) || []
         })),
         deliveryAddress: isDelivery ? orderAddress : 'Retiro en Local',
         contactPhone: orderPhone,
-        rewardType: selectedReward // <--- ENVIAMOS EL PREMIO ELEGIDO AL BACKEND
+        // Corrección: Solo mandamos la variable si NO es nula
+        ...(selectedReward && { rewardType: selectedReward }) 
       };
       
       const orderResponse = await api.post('/orders', orderPayload);
