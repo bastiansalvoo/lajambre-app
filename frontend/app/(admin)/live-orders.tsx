@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -32,7 +32,6 @@ export default function LiveOrdersScreen() {
       setIsLoading(true);
       fetchAdminOrders();
       
-      // Auto-refresh cada 30 segundos para que Angelo no tenga que recargar manual
       const interval = setInterval(() => {
         fetchAdminOrders();
       }, 30000);
@@ -44,7 +43,7 @@ export default function LiveOrdersScreen() {
   const cambiarEstado = async (orderId: number, nuevoEstado: string) => {
     try {
       await api.patch(`/orders/${orderId}/status`, { status: nuevoEstado });
-      fetchAdminOrders(); // Recargamos para que el ticket se mueva de columna
+      fetchAdminOrders(); 
     } catch (error) {
       Alert.alert('Error', 'No se pudo actualizar el estado del pedido');
     }
@@ -139,6 +138,35 @@ export default function LiveOrdersScreen() {
                 </View>
               </View>
 
+              {/* 👇 NUEVA SECCIÓN: DATOS DEL CLIENTE Y CONTACTO */}
+              <View className="bg-black/50 rounded-xl p-3 mb-4 border border-neutral-800">
+                <View className="flex-row justify-between items-center">
+                  <View className="flex-1 mr-3">
+                    <View className="flex-row items-center mb-1">
+                      <FontAwesome name="map-marker" size={12} color="#EAB308" className="w-4 text-center" />
+                      <Text className="text-neutral-300 text-xs font-bold ml-2" numberOfLines={1}>
+                        {order.deliveryAddress || 'Retiro en Local'}
+                      </Text>
+                    </View>
+                    <View className="flex-row items-center">
+                      <FontAwesome name="phone" size={12} color="#9CA3AF" className="w-4 text-center" />
+                      <Text className="text-neutral-400 text-xs font-bold ml-2">
+                        {order.contactPhone || 'Sin teléfono'}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  {order.contactPhone && order.contactPhone !== 'Sin teléfono' && (
+                    <TouchableOpacity 
+                      onPress={() => Linking.openURL(`tel:${order.contactPhone}`)}
+                      className="bg-neutral-800 w-10 h-10 rounded-full items-center justify-center border border-neutral-700"
+                    >
+                      <FontAwesome name="phone" size={16} color="#EAB308" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
               <View className="mb-6">
                 {order.items?.map((item: any, index: number) => (
                   <View key={index} className="flex-row items-center py-2">
@@ -146,9 +174,17 @@ export default function LiveOrdersScreen() {
                       <Text className="text-yellow-500 font-black text-sm">{item.quantity}</Text>
                       <Text className="text-neutral-500 font-bold text-[10px] ml-0.5">x</Text>
                     </View>
-                    <Text className="text-neutral-200 font-bold text-base flex-1" numberOfLines={2}>
-                      {item.product?.name}
-                    </Text>
+                    <View className="flex-1">
+                      <Text className="text-neutral-200 font-bold text-base flex-1" numberOfLines={2}>
+                        {item.product?.name}
+                      </Text>
+                      {/* 👇 Mostramos los extras si los hay */}
+                      {item.extras && item.extras.length > 0 && (
+                        <Text className="text-neutral-500 text-[10px] uppercase font-bold mt-0.5">
+                          + {item.extras.map((e: any) => e.extra.name).join(', ')}
+                        </Text>
+                      )}
+                    </View>
                   </View>
                 ))}
               </View>
