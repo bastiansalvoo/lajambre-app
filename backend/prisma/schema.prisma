@@ -147,3 +147,8 @@ model PointTransaction {
 
   @@index([userId])
 }
+
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "./diagram.svg"
+}

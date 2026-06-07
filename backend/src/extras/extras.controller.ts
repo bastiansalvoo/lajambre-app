@@ -35,10 +35,11 @@ export class ExtrasController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  updateAvailability(
+  update(
     @Param('id', ParseIntPipe) id: number,
-    @Body('isAvailable') isAvailable: boolean,
+    @Body()
+    updateData: { name?: string; price?: number; isAvailable?: boolean },
   ) {
-    return this.extrasService.updateAvailability(id, isAvailable);
+    return this.extrasService.update(id, updateData); // Asegúrate de que tu extrasService tenga un método update que maneje esto
   }
 }
