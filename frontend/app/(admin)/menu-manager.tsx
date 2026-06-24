@@ -141,116 +141,150 @@ export default function MenuManagerScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-black" edges={['top', 'left', 'right']}>
-      
-      {/* 👑 CABECERA */}
-      <View className="px-5 py-4 flex-row items-center border-b border-neutral-900 bg-neutral-950">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2 -ml-2">
-          <FontAwesome name="arrow-left" size={20} color="#EAB308" />
-        </TouchableOpacity>
-        <View className="flex-row items-center flex-1">
-          <View className="w-8 h-8 bg-yellow-500 rounded-lg items-center justify-center mr-3">
-            <FontAwesome name="cutlery" size={16} color="black" />
-          </View>
-          <View>
-            <Text className="text-white text-lg font-black uppercase tracking-widest">Gestor de Menú</Text>
-            <Text className="text-neutral-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">Control de Catálogo</Text>
-          </View>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: '#090909' }} edges={['top', 'left', 'right']}>
+      {/* Fondo sutil */}
+      <Image source={require('../../assets/images/menu/banner.jpg')} className="absolute inset-0 w-full h-full" resizeMode="cover" style={{ opacity: 0.06 }} />
+      {/* Título */}
+      <View className="px-5 pt-3 pb-2 flex-row items-center justify-between">
+        <View>
+          <Text className="text-white text-xl font-black uppercase">Gestor de Menú</Text>
+          <Text className="text-neutral-500 text-[10px] font-bold uppercase mt-0.5">{products?.length || 0} productos</Text>
         </View>
+        <TouchableOpacity
+          onPress={() => { resetForm(); setIsModalVisible(true); }}
+          className="bg-yellow-500 w-9 h-9 rounded-2xl items-center justify-center"
+        >
+          <FontAwesome name="plus" size={16} color="black" />
+        </TouchableOpacity>
       </View>
 
-      {/* Botón Flotante para Crear */}
-      <TouchableOpacity 
-        onPress={() => { resetForm(); setIsModalVisible(true); }}
-        className="absolute bottom-6 right-6 bg-yellow-500 w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-yellow-500/30 z-50 active:bg-yellow-600"
-      >
-        <FontAwesome name="plus" size={24} color="black" />
-      </TouchableOpacity>
-
-      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
         {loadingProducts && <ActivityIndicator color="#EAB308" className="mt-10" />}
-
-        {/* CONTENEDOR DE LA LISTA: Quitamos el flex-1 para que no se estire */}
         <View className="pb-20">
           {products?.map((item: any) => (
-            <View key={item.id} className={`bg-neutral-900 border ${item.isAvailable ? 'border-neutral-800' : 'border-red-500/30 bg-neutral-950'} p-3 rounded-2xl mb-4 flex-row items-center shadow-sm`}>
-              
-              <Image 
-                source={item.image ? { uri: item.image } : require('../../assets/images/menu/bbq.jpg')} 
-                className={`w-16 h-16 rounded-xl bg-neutral-800 ${!item.isAvailable && 'opacity-40'}`}
-                resizeMode="cover"
-              />
-              
-              <View className="flex-1 mx-4">
-                <Text className={`font-bold text-base uppercase ${item.isAvailable ? 'text-white' : 'text-neutral-500'}`} numberOfLines={1}>{item.name}</Text>
-                <Text className={`${item.isAvailable ? 'text-yellow-500' : 'text-red-500/70'} font-black mt-1`}>
-                  ${item.price.toLocaleString('es-CL')}
-                </Text>
-              </View>
-
-              <View className="items-end justify-between h-16 py-1">
-                <TouchableOpacity onPress={() => openEditModal(item)} className="p-2 bg-neutral-800 rounded-lg mb-2">
-                  <FontAwesome name="pencil" size={14} color="#EAB308" />
-                </TouchableOpacity>
-                
-                <Switch
-                  trackColor={{ false: "#3f3f46", true: "#EAB308" }}
-                  thumbColor={item.isAvailable ? "#000000" : "#a1a1aa"}
-                  ios_backgroundColor="#3f3f46"
-                  onValueChange={() => toggleAvailability(item)}
-                  value={item.isAvailable}
-                  style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+            <View
+              key={item.id}
+              className={`rounded-3xl mb-3 overflow-hidden border ${
+                item.isAvailable ? 'bg-neutral-950 border-neutral-800/50' : 'bg-neutral-950 border-red-500/20 opacity-60'
+              }`}
+            >
+              <View className="flex-row items-center p-3">
+                {/* Imagen */}
+                <Image
+                  source={item.image ? { uri: item.image } : require('../../assets/images/menu/bbq.jpg')}
+                  className="w-[72px] h-[72px] rounded-2xl bg-neutral-900"
+                  resizeMode="cover"
                 />
-              </View>
 
+                {/* Info */}
+                <View className="flex-1 ml-4">
+                  <Text className="text-white font-black uppercase text-sm" numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <View className="flex-row items-center mt-1">
+                    <Text className="text-yellow-500 font-black text-base">${item.price.toLocaleString('es-CL')}</Text>
+                    {!item.isAvailable && (
+                      <View className="ml-2 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">
+                        <Text className="text-red-500 text-[9px] font-black uppercase">Pausado</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* Acciones */}
+                <View className="items-center gap-y-2">
+                  <TouchableOpacity
+                    onPress={() => openEditModal(item)}
+                    className="bg-neutral-900 w-9 h-9 rounded-xl items-center justify-center border border-neutral-800"
+                  >
+                    <FontAwesome name="pencil" size={14} color="#EAB308" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => toggleAvailability(item)}
+                    className={`w-9 h-9 rounded-xl items-center justify-center border ${
+                      item.isAvailable ? 'bg-green-500/10 border-green-500/20' : 'bg-neutral-900 border-neutral-800'
+                    }`}
+                  >
+                    <FontAwesome
+                      name={item.isAvailable ? 'eye' : 'eye-slash'}
+                      size={14}
+                      color={item.isAvailable ? '#22C55E' : '#525252'}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
           ))}
         </View>
       </ScrollView>
 
-      {/* MODAL DE EDICIÓN/CREACIÓN */}
-      <Modal visible={isModalVisible} animationType="slide" transparent={true}>
-        <View className="flex-1 justify-end bg-black/90">
-          <View className="bg-neutral-900 rounded-t-[40px] p-8 h-[85%] border-t border-neutral-800 shadow-2xl">
+      {/* ── MODAL DE EDICIÓN ── */}
+      <Modal visible={isModalVisible} animationType="slide" transparent>
+        <View className="flex-1 justify-end bg-black/80">
+          <View className="bg-neutral-950 rounded-t-[40px] p-6 h-[88%] border-t border-neutral-800">
             <View className="flex-row justify-between items-center mb-6">
               <Text className="text-white text-2xl font-black uppercase">
-                {editId ? 'Editar Producto' : 'Nueva Burger'}
+                {editId ? 'Editar Producto' : 'Nuevo Producto'}
               </Text>
-              <TouchableOpacity onPress={resetForm}><FontAwesome name="times-circle" size={28} color="#525252" /></TouchableOpacity>
+              <TouchableOpacity onPress={resetForm} className="bg-neutral-900 w-10 h-10 rounded-2xl items-center justify-center border border-neutral-800">
+                <FontAwesome name="close" size={16} color="#EAB308" />
+              </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <TouchableOpacity onPress={pickNewProductImage} className="w-full h-44 bg-neutral-800 rounded-3xl border-2 border-dashed border-neutral-700 items-center justify-center mb-6 overflow-hidden">
-                {newImage ? <Image source={{ uri: newImage }} className="w-full h-full" /> : <FontAwesome name="image" size={40} color="#EAB308" />}
-                <View className="absolute bottom-2 right-2 bg-black/60 p-2 rounded-lg">
-                  <FontAwesome name="camera" size={16} color="white" />
-                </View>
+              {/* Imagen */}
+              <TouchableOpacity onPress={pickNewProductImage} className="w-full h-48 bg-neutral-900 rounded-3xl border-2 border-dashed border-neutral-800 items-center justify-center mb-6 overflow-hidden">
+                {newImage ? (
+                  <Image source={{ uri: newImage }} className="w-full h-full" resizeMode="cover" />
+                ) : (
+                  <View className="items-center">
+                    <FontAwesome name="image" size={36} color="#EAB308" />
+                    <Text className="text-neutral-500 text-xs font-bold mt-2">Tocar para elegir foto</Text>
+                  </View>
+                )}
               </TouchableOpacity>
 
-              <Text className="text-neutral-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Nombre</Text>
-              <TextInput value={newName} onChangeText={setNewName} className="bg-neutral-800 text-white p-4 rounded-xl mb-4 font-bold" placeholder="Ej: La Jambre Especial" placeholderTextColor="#444"/>
+              {/* Nombre */}
+              <Text className="text-neutral-400 font-bold mb-2 uppercase text-[10px]">Nombre</Text>
+              <TextInput value={newName} onChangeText={setNewName} className="bg-neutral-900 border border-neutral-800 text-white p-4 rounded-2xl mb-4 font-bold" placeholder="Ej: La Jambre Especial" placeholderTextColor="#444" />
 
-              <Text className="text-neutral-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Precio ($)</Text>
-              <TextInput value={newPrice} onChangeText={setNewPrice} keyboardType="numeric" className="bg-neutral-800 text-white p-4 rounded-xl mb-4 font-bold" placeholder="8990" placeholderTextColor="#444"/>
+              {/* Precio */}
+              <Text className="text-neutral-400 font-bold mb-2 uppercase text-[10px]">Precio ($)</Text>
+              <TextInput value={newPrice} onChangeText={setNewPrice} keyboardType="numeric" className="bg-neutral-900 border border-neutral-800 text-white p-4 rounded-2xl mb-4 font-bold" placeholder="8990" placeholderTextColor="#444" />
 
-              <Text className="text-neutral-400 font-bold mb-3 uppercase text-[10px] tracking-widest">Categoría</Text>
-              <View className="flex-row flex-wrap gap-2 mb-6">
+              {/* Categoría */}
+              <Text className="text-neutral-400 font-bold mb-3 uppercase text-[10px]">Categoría</Text>
+              <View className="flex-row flex-wrap gap-2 mb-4">
                 {loadingCats ? <ActivityIndicator color="#EAB308" /> : categories?.map((cat: any) => (
                   <TouchableOpacity
                     key={cat.id}
                     onPress={() => setNewCategoryId(cat.id)}
-                    className={`px-4 py-2 rounded-full border ${newCategoryId === cat.id ? 'bg-yellow-500 border-yellow-500' : 'bg-neutral-800 border-neutral-700'}`}
+                    className={`px-5 py-2.5 rounded-2xl border ${
+                      newCategoryId === cat.id ? 'bg-yellow-500 border-yellow-500' : 'bg-neutral-900 border-neutral-800'
+                    }`}
                   >
-                    <Text className={`font-bold text-[10px] uppercase ${newCategoryId === cat.id ? 'text-black' : 'text-neutral-400'}`}>{cat.name}</Text>
+                    <Text className={`font-black text-xs uppercase ${newCategoryId === cat.id ? 'text-black' : 'text-neutral-400'}`}>
+                      {cat.name}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text className="text-neutral-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Descripción</Text>
-              <TextInput value={newDesc} onChangeText={setNewDesc} multiline className="bg-neutral-800 text-white p-4 rounded-xl mb-6 h-24" textAlignVertical="top" placeholder="Detalle ingredientes..." placeholderTextColor="#444"/>
+              {/* Descripción */}
+              <Text className="text-neutral-400 font-bold mb-2 uppercase text-[10px]">Descripción</Text>
+              <TextInput value={newDesc} onChangeText={setNewDesc} multiline className="bg-neutral-900 border border-neutral-800 text-white p-4 rounded-2xl mb-6 h-24" textAlignVertical="top" placeholder="Detalle ingredientes..." placeholderTextColor="#444" />
 
-              <TouchableOpacity onPress={() => saveMutation.mutate()} disabled={saveMutation.isPending} className={`bg-yellow-500 p-5 rounded-2xl items-center mb-10 ${saveMutation.isPending && 'opacity-50'}`}>
-                {saveMutation.isPending ? <ActivityIndicator color="black" /> : <Text className="text-black font-black uppercase text-lg">{editId ? 'Guardar Cambios' : 'Publicar en Menú'}</Text>}
+              {/* Botón Guardar */}
+              <TouchableOpacity
+                onPress={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+                className={`bg-yellow-500 p-5 rounded-2xl items-center mb-10 ${saveMutation.isPending && 'opacity-50'}`}
+              >
+                {saveMutation.isPending ? (
+                  <ActivityIndicator color="black" />
+                ) : (
+                  <Text className="text-black font-black uppercase text-base">{editId ? 'Guardar Cambios' : 'Publicar en Menú'}</Text>
+                )}
               </TouchableOpacity>
             </ScrollView>
           </View>

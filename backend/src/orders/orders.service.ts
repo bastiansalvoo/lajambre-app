@@ -4,6 +4,7 @@ import {
   BadRequestException,
   //ForbiddenException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus, PointTransactionType, Prisma } from '@prisma/client';
@@ -37,6 +38,7 @@ export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private webpay: WebpayService,
+    private configService: ConfigService,
   ) {}
 
   private isStoreOpen(): boolean {
@@ -81,7 +83,7 @@ export class OrdersService {
       const user = await tx.user.findUnique({ where: { id: userId } });
       if (!user) throw new NotFoundException('Usuario no encontrado');
 
-      let deliveryFee = 1250;
+      let deliveryFee = 1800;
       let pointsToUse = 0;
       let discount = 0;
 
@@ -121,7 +123,7 @@ export class OrdersService {
           case 'QUESO_GRATIS':
           case 'TOCINO_GRATIS':
           case 'BEBIDA_GRATIS':
-            discount = 1000;
+            discount = 1200;
             break;
           case 'PAPAS_GRATIS':
             discount = 2500;
@@ -249,11 +251,13 @@ export class OrdersService {
 
     const buyOrder = `ORD-${order.id}-${Math.floor(Math.random() * 1000)}`;
 
+    const apiHost = this.configService.get<string>('API_HOST', 'localhost');
+    const port = this.configService.get<string>('PORT', '3000');
     const returnUrl =
-      process.env.WEBPAY_RETURN_URL || // <--- EL JEFE SUPREMO
-      'http://192.168.1.14:3000/orders/webpay/confirm';
-    // Si pagó 100% con puntos
+      this.configService.get<string>('WEBPAY_RETURN_URL') ||
+      `http://${apiHost}:${port}/orders/webpay/confirm`;
 
+    // Si pagó 100% con puntos
     if (order.total === 0) {
       await this.prisma.order.update({
         where: { id: order.id },
@@ -261,7 +265,7 @@ export class OrdersService {
       });
       return {
         token: 'GRATIS',
-        url: 'http://192.168.1.14:3000/orders/webpay/confirm?token_ws=GRATIS',
+        url: `http://${apiHost}:${port}/orders/webpay/confirm?token_ws=GRATIS`,
       };
     }
 
@@ -386,19 +390,27 @@ export class OrdersService {
     });
   }
 
-  async findAllForAdmin() {
-    return this.prisma.order.findMany({
-      include: {
-        user: true,
-        items: {
-          include: {
-            product: true,
-            extras: { include: { extra: true } },
+  async findAllForAdmin(page = 1, limit = 50) {
+    const skip = (page - 1) * limit;
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        skip,
+        take: limit,
+        include: {
+          user: true,
+          items: {
+            include: {
+              product: true,
+              extras: { include: { extra: true } },
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.order.count(),
+    ]);
+
+    return { data: orders, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
   async updateStatus(id: number, status: OrderStatus) {

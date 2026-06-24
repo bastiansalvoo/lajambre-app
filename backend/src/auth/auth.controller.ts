@@ -70,6 +70,11 @@ export class AuthController {
     return this.authService.login(loginDto.email, loginDto.password);
   }
 
+  @Post('refresh')
+  async refresh(@Body('refresh_token') refreshToken: string) {
+    return this.authService.refresh(refreshToken);
+  }
+
   @UseGuards(AuthGuard('jwt'))
   @Get('perfil')
   getProfile(

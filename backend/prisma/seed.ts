@@ -40,6 +40,7 @@ async function main() {
       name: 'Angelo (Admin)',
       phone: '+5692158434', // Teléfono del flyer
       role: 'ADMIN',
+      isVerified: true,
     },
   });
   console.log(`👑 Admin creado: ${admin.email} (Clave: admin123)`);
@@ -53,61 +54,85 @@ async function main() {
   });
   console.log('📁 Categorías del menú creadas.');
 
-  // 4. Crear Productos (Menú Oficial extraído del Flyer)
+  // 4. Crear Productos (Menú Oficial Junio 2026)
   const productos = await prisma.product.createMany({
     data: [
       {
         name: 'Clásica',
         description:
-          'Nuestra esencia hecha burger. Hamburguesa de 150g de carne especial, con salsa Lajambre, lechuga fresca, pepinillos, tomate, doble queso cheddar, cebolla morada y tocino crocante, todo en pan artesanal.',
-        price: 7990,
+          'Salsa Lajambre, lechuga, pepinillos, tomate, doble cheddar, cebolla morada y tocino crocante.',
+        price: 8590,
         categoryId: catBurgers.id,
       },
       {
-        name: 'La de Palta',
+        name: 'La Paltaza',
         description:
-          'La favorita de los que aman lo cremoso con carácter. Hamburguesa de 150g de carne especial, con salsa Lajambre, lechuga, pepinillos, doble queso cheddar, palta molida especiada, huevo frito y cebolla morada, todo en pan artesanal.',
-        price: 8490,
+          'Salsa Lajambre, lechuga, pepinillos, doble cheddar, palta molida, huevo frito y cebolla morada.',
+        price: 8790,
         categoryId: catBurgers.id,
       },
       {
         name: 'BBQ',
         description:
-          'Para los que buscan sabor ahumado y contundente. Hamburguesa de 150g de carne especial, con salsa BBQ, champiñones salteados, cebolla caramelizada, tocino, doble queso cheddar y toque final de salsa especial Lajambre, todo en pan artesanal.',
-        price: 8990,
+          'Salsa BBQ, champiñones salteados, cebolla caramelizada, tocino, doble cheddar y toque de salsa Lajambre.',
+        price: 9990,
         categoryId: catBurgers.id,
       },
       {
         name: 'Triplecheese',
         description:
-          'Intensa, cremosa y con carácter. Hamburguesa de 150g de carne especial, con toque suave de salsa Lajambre, lechuga, pepinillos, cebolla salteada al vino blanco, mezcla cremosa de gouda, cheddar y queso azul terminando con tocino en el tope, todo en pan artesanal.',
-        price: 8790,
+          'Salsa Lajambre, lechuga, pepinillos, cebolla al vino blanco, mix de quesos (gouda, cheddar, azul) y tocino en el tope.',
+        price: 9790,
         categoryId: catBurgers.id,
       },
       {
         name: 'Mostaza-Miel',
         description:
-          'Dulce, sabrosa y perfectamente equilibrada. Hamburguesa de 150g de carne especial, con salsa mostaza-miel Lajambre, lechuga fresca, queso gouda, cebolla caramelizada, pepinillos laminados y tocino crocante, todo en pan artesanal.',
+          'Salsa mostaza-miel Lajambre, lechuga, queso gouda, cebolla caramelizada, pepinillos laminados y tocino crocante.',
+        price: 8990,
+        categoryId: catBurgers.id,
+      },
+      {
+        name: 'La Chacarera',
+        description:
+          'Mayonesa, tomate fresco, porotos verdes, ají en rodajas y doble queso cheddar.',
         price: 8290,
+        categoryId: catBurgers.id,
+      },
+      {
+        name: 'La 4to Lajambre',
+        description:
+          'Salsa Lajambre, lechuga fresca, pepinillos, doble cheddar y cebolla en cubos.',
+        price: 7990,
         categoryId: catBurgers.id,
       },
       // Bebidas
       {
         name: 'Lata de Bebida',
         description: 'Agrega una lata de bebida a tu pedido.',
-        price: 1000,
+        price: 1200,
         categoryId: catBebidas.id,
       },
     ],
   });
   console.log(`🍔 ${productos.count} productos agregados a la carta.`);
 
-  // 5. Crear Ingredientes Extras
+  // 5. Crear Extras y Adicionales (Menú Junio 2026)
   const extras = await prisma.extra.createMany({
     data: [
-      { name: 'Carne Extra', price: 2000 },
-      { name: 'Salsa Lajambre Extra', price: 500 },
-      // Nota: El flyer dice que toda burger lleva papas, así que no necesitamos cobrarlas aparte como extra a menos que quieran doble porción.
+      // Extras a $1.000
+      { name: 'Tocino', price: 1000 },
+      { name: 'Palta', price: 1000 },
+      { name: 'Queso (2 láminas)', price: 1000 },
+      { name: 'Cebolla pochada', price: 1000 },
+      { name: 'Champiñones salteados', price: 1000 },
+      // Extras a $500
+      { name: 'Huevo', price: 500 },
+      { name: 'Lechuga', price: 500 },
+      { name: 'Tomate', price: 500 },
+      { name: 'Pepinillos', price: 500 },
+      // Para sumar más hambre
+      { name: 'Carne Extra (150g)', price: 3000 },
     ],
   });
   console.log(`🥓 ${extras.count} extras agregados.`);

@@ -107,44 +107,53 @@ export class UsersService {
 
   @Cron('0 3 * * *')
   async cleanExpiredPoints() {
-    console.log('Iniciando limpieza de puntos vencidos...');
-    const now = new Date();
+    try {
+      console.log('🧹 [CRON] Iniciando limpieza de puntos vencidos...');
+      const now = new Date();
 
-    const expiredTxs = await this.prisma.pointTransaction.findMany({
-      where: { type: PointTransactionType.EARNED, expiresAt: { lte: now } },
-    });
-
-    for (const tx of expiredTxs) {
-      const user = await this.prisma.user.findUnique({
-        where: { id: tx.userId },
+      const expiredTxs = await this.prisma.pointTransaction.findMany({
+        where: { type: PointTransactionType.EARNED, expiresAt: { lte: now } },
       });
 
-      if (user && user.pointsBalance > 0) {
-        const pointsToRemove = Math.min(tx.points, user.pointsBalance);
+      let cleanedCount = 0;
+      for (const tx of expiredTxs) {
+        const user = await this.prisma.user.findUnique({
+          where: { id: tx.userId },
+        });
 
-        await this.prisma.$transaction([
-          this.prisma.user.update({
-            where: { id: user.id },
-            data: { pointsBalance: { decrement: pointsToRemove } },
-          }),
-          this.prisma.pointTransaction.create({
-            data: {
-              userId: user.id,
-              points: -pointsToRemove,
-              type: PointTransactionType.EXPIRED,
-            },
-          }),
-          this.prisma.pointTransaction.update({
+        if (user && user.pointsBalance > 0) {
+          const pointsToRemove = Math.min(tx.points, user.pointsBalance);
+
+          await this.prisma.$transaction([
+            this.prisma.user.update({
+              where: { id: user.id },
+              data: { pointsBalance: { decrement: pointsToRemove } },
+            }),
+            this.prisma.pointTransaction.create({
+              data: {
+                userId: user.id,
+                points: -pointsToRemove,
+                type: PointTransactionType.EXPIRED,
+              },
+            }),
+            this.prisma.pointTransaction.update({
+              where: { id: tx.id },
+              data: { expiresAt: null },
+            }),
+          ]);
+          cleanedCount++;
+        } else {
+          await this.prisma.pointTransaction.update({
             where: { id: tx.id },
             data: { expiresAt: null },
-          }),
-        ]);
-      } else {
-        await this.prisma.pointTransaction.update({
-          where: { id: tx.id },
-          data: { expiresAt: null },
-        });
+          });
+        }
       }
+      console.log(
+        `✅ [CRON] Limpieza completada: ${cleanedCount} usuarios afectados, ${expiredTxs.length} transacciones procesadas.`,
+      );
+    } catch (error) {
+      console.error('❌ [CRON] Error en limpieza de puntos:', error);
     }
   }
 }

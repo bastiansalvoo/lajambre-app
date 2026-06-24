@@ -57,7 +57,7 @@ export default function CartScreen() {
 
   // --- NUEVO: CÁLCULO DINÁMICO DE DESCUENTOS POR PREMIOS ---
   let totalAmount = items.reduce((sum, item) => sum + (getItemTotalPrice(item) * item.quantity), 0);
-  let deliveryCost = isDelivery ? 1250 : 0;
+  let deliveryCost = isDelivery ? 1800 : 0;
   let rewardDiscount = 0;
 
   // Verificamos si la orden tiene hamburguesas (útil para el premio BURGER_GRATIS)
@@ -66,7 +66,7 @@ export default function CartScreen() {
   if (selectedReward === 'DELIVERY_GRATIS') {
     deliveryCost = 0;
   } else if (selectedReward === 'BEBIDA_GRATIS') {
-    rewardDiscount = 1000;
+    rewardDiscount = 1200;
   } else if (selectedReward === 'BURGER_GRATIS' && hasBurger) {
     rewardDiscount = 8490; // Valor promedio definido en el backend
   } else if (selectedReward === 'BURGER_GRATIS' && !hasBurger) {

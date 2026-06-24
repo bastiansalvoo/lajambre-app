@@ -1,17 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import * as nodemailer from 'nodemailer'; // <-- La librería que acabas de instalar
+import { ConfigService } from '@nestjs/config';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
-  // 👇 Le decimos explícitamente a TypeScript qué tipo de dato es esto
   private transporter: nodemailer.Transporter;
 
-  constructor() {
+  constructor(private configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: this.configService.get<string>('SMTP_HOST', 'smtp.gmail.com'),
+      port: this.configService.get<number>('SMTP_PORT', 587),
+      secure: false,
       auth: {
-        user: 'dev.lajambre@gmail.com',
-        pass: 'xzyfzfirwzxpxljq', // La que generaste en Google
+        user: this.configService.getOrThrow<string>('SMTP_USER'),
+        pass: this.configService.getOrThrow<string>('SMTP_PASS'),
       },
     });
   }
@@ -21,10 +23,12 @@ export class MailService {
     token: string,
     userName: string,
   ) {
-    const url = `http://192.168.1.14:3000/auth/verify?token=${token}`;
+    const host = this.configService.get<string>('API_HOST', 'localhost');
+    const port = this.configService.get<string>('PORT', '3000');
+    const url = `http://${host}:${port}/auth/verify?token=${token}`;
 
     const mailOptions = {
-      from: '"La Jambre App" <no-reply@lajambre.cl>',
+      from: this.configService.get<string>('SMTP_FROM', '"La Jambre App" <no-reply@lajambre.cl>'),
       to: userEmail,
       subject: '🍔 Verifica tu cuenta en La Jambre',
       html: `

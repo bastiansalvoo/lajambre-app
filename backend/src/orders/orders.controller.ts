@@ -8,9 +8,9 @@ import {
   ValidationPipe,
   Get,
   Param,
+  Query,
   ParseIntPipe,
   Patch,
-  Query,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -76,7 +76,7 @@ export class OrdersController {
             <div class="icon">❌</div>
             <h1>Pago Cancelado</h1>
             <p>Has anulado el pago en Webpay. Tu pedido no ha sido procesado y sigue pendiente en tu carrito.</p>
-            <a href="exp://192.168.1.14:8081/--/(client)/orders" class="btn">Volver a la App</a>
+            <a href="exp://192.168.0.23:8081/--/(client)/orders" class="btn">Volver a la App</a>
           </div>
         </body>
         </html>
@@ -107,7 +107,7 @@ export class OrdersController {
               <div class="icon">🔥</div>
               <h1>¡Pedido Confirmado!</h1>
               <p>Tu pago fue procesado con éxito y la cocina ya está preparando tu comida.</p>
-              <a href="exp://192.168.1.14:8081/--/(client)/orders" class="btn">Ver mi pedido</a>
+              <a href="exp://192.168.0.23:8081/--/(client)/orders" class="btn">Ver mi pedido</a>
             </div>
           </body>
           </html>
@@ -137,7 +137,7 @@ export class OrdersController {
               <div class="icon">⚠️</div>
               <h1>Pago Rechazado</h1>
               <p>Tu banco ha rechazado la transacción. Por favor, intenta con otro medio de pago.</p>
-              <a href="exp://192.168.1.14:8081/--/(client)/orders" class="btn">Volver a la App</a>
+              <a href="exp://192.168.0.23:8081/--/(client)/orders" class="btn">Volver a la App</a>
             </div>
           </body>
           </html>
@@ -153,8 +153,14 @@ export class OrdersController {
   @Get('admin/all')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ADMIN')
-  async findAllAdmin() {
-    return this.ordersService.findAllForAdmin();
+  async findAllAdmin(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.ordersService.findAllForAdmin(
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 50,
+    );
   }
 
   @Get()

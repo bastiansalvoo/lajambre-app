@@ -48,6 +48,9 @@ model User {
   isVerified        Boolean   @default(false)
   verificationToken String?   // Guardará el código secreto temporal
 
+  // --- SESIÓN ---
+  refreshToken      String?   // Token para renovar JWT sin re-login
+
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }
@@ -84,7 +87,7 @@ model Order {
   userId       Int
   status       OrderStatus @default(PENDIENTE)
   total        Int
-  deliveryFee  Int         @default(1250)
+  deliveryFee  Int         @default(1800)
 
   // --- NUEVOS CAMPOS ---
   deliveryAddress String?   // Para guardar dónde se entregó físicamente
@@ -148,7 +151,7 @@ model PointTransaction {
   @@index([userId])
 }
 
-generator erd {
-  provider = "prisma-erd-generator"
-  output   = "./diagram.svg"
-}
+// generator erd {
+//   provider = "prisma-erd-generator"
+//   output   = "./diagram.svg"
+// }

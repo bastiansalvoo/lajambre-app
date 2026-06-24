@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
-  View, Text, ScrollView, TouchableOpacity, 
-  ActivityIndicator, Modal, TextInput, Switch 
+  View, Text, ScrollView, TouchableOpacity, Image,
+  ActivityIndicator, Modal, TextInput,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -81,116 +81,122 @@ export default function ExtrasManagerScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-black" edges={['top', 'left', 'right']}>
-      
-      {/* 👑 CABECERA */}
-      <View className="px-5 py-4 flex-row items-center border-b border-neutral-900 bg-neutral-950">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2 -ml-2">
-          <FontAwesome name="arrow-left" size={20} color="#EAB308" />
+    <SafeAreaView className="flex-1" style={{ backgroundColor: '#090909' }} edges={['top', 'left', 'right']}>
+      {/* Fondo sutil */}
+      <Image source={require('../../assets/images/menu/banner.jpg')} className="absolute inset-0 w-full h-full" resizeMode="cover" style={{ opacity: 0.06 }} />
+      {/* Título */}
+      <View className="px-5 pt-3 pb-2 flex-row items-center justify-between">
+        <View>
+          <Text className="text-white text-xl font-black uppercase">Gestor de Extras</Text>
+          <Text className="text-neutral-500 text-[10px] font-bold uppercase mt-0.5">{extras?.length || 0} extras</Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => { resetForm(); setIsModalVisible(true); }}
+          className="bg-yellow-500 w-9 h-9 rounded-2xl items-center justify-center"
+        >
+          <FontAwesome name="plus" size={16} color="black" />
         </TouchableOpacity>
-        <View className="flex-row items-center flex-1">
-          <View className="w-8 h-8 bg-yellow-500 rounded-lg items-center justify-center mr-3">
-            <FontAwesome name="plus-circle" size={16} color="black" />
-          </View>
-          <View>
-            <Text className="text-white text-lg font-black uppercase tracking-widest">Gestor de Extras</Text>
-            <Text className="text-neutral-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">Control de Acompañamientos</Text>
-          </View>
+      </View>
+
+      {/* ── PRECIO LEGEND ── */}
+      <View className="px-5 pb-2 flex-row gap-x-2">
+        <View className="bg-yellow-500/10 border border-yellow-500/20 rounded-full px-3 py-1 flex-row items-center">
+          <Text className="text-yellow-500 font-black text-[10px]">$1.000</Text>
+        </View>
+        <View className="bg-orange-500/10 border border-orange-500/20 rounded-full px-3 py-1 flex-row items-center">
+          <Text className="text-orange-400 font-black text-[10px]">$500</Text>
+        </View>
+        <View className="bg-red-500/10 border border-red-500/20 rounded-full px-3 py-1 flex-row items-center">
+          <Text className="text-red-400 font-black text-[10px]">$3.000</Text>
         </View>
       </View>
 
-      {/* Botón Flotante para Crear */}
-      <TouchableOpacity 
-        onPress={() => { resetForm(); setIsModalVisible(true); }}
-        className="absolute bottom-6 right-6 bg-yellow-500 w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-yellow-500/30 z-50 active:bg-yellow-600"
-      >
-        <FontAwesome name="plus" size={24} color="black" />
-      </TouchableOpacity>
-
-      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
         {loadingExtras && <ActivityIndicator color="#EAB308" className="mt-10" />}
-
-        {/* CONTENEDOR DE LA LISTA */}
         <View className="pb-20">
-          {extras?.map((item: any) => (
-            <View key={item.id} className={`bg-neutral-900 border ${item.isAvailable ? 'border-neutral-800' : 'border-red-500/30 bg-neutral-950'} p-4 rounded-2xl mb-4 flex-row items-center justify-between shadow-sm`}>
-              
-              <View className="flex-1 mr-4">
-                <Text className={`font-black text-lg uppercase ${item.isAvailable ? 'text-white' : 'text-neutral-500'}`} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text className={`${item.isAvailable ? 'text-yellow-500' : 'text-red-500/70'} font-bold mt-1`}>
-                  + ${item.price.toLocaleString('es-CL')}
-                </Text>
-              </View>
+          {extras?.map((item: any) => {
+            let priceColor = 'text-yellow-500';
+            let priceBg = 'bg-yellow-500/10 border-yellow-500/20';
+            if (item.price === 500) { priceColor = 'text-orange-400'; priceBg = 'bg-orange-500/10 border-orange-500/20'; }
+            if (item.price === 3000) { priceColor = 'text-red-400'; priceBg = 'bg-red-500/10 border-red-500/20'; }
 
-              <View className="flex-row items-center gap-3">
-                <TouchableOpacity onPress={() => openEditModal(item)} className="p-3 bg-neutral-800 rounded-xl">
-                  <FontAwesome name="pencil" size={16} color="#EAB308" />
-                </TouchableOpacity>
-                
-                <Switch
-                  trackColor={{ false: "#3f3f46", true: "#EAB308" }}
-                  thumbColor={item.isAvailable ? "#000000" : "#a1a1aa"}
-                  ios_backgroundColor="#3f3f46"
-                  onValueChange={() => toggleAvailability(item)}
-                  value={item.isAvailable}
-                />
-              </View>
+            return (
+              <View
+                key={item.id}
+                className={`rounded-2xl mb-2.5 flex-row items-center p-4 border ${
+                  item.isAvailable ? 'bg-neutral-950 border-neutral-800/50' : 'bg-neutral-950 border-red-500/20 opacity-50'
+                }`}
+              >
+                {/* Icono de precio */}
+                <View className={`w-12 h-12 rounded-2xl items-center justify-center border mr-4 ${priceBg}`}>
+                  <Text className={`font-black text-sm ${priceColor}`}>
+                    {item.price === 3000 ? '3K' : `$${item.price}`}
+                  </Text>
+                </View>
 
-            </View>
-          ))}
+                {/* Nombre */}
+                <View className="flex-1">
+                  <Text className="text-white font-black uppercase text-sm" numberOfLines={1}>{item.name}</Text>
+                  {!item.isAvailable && (
+                    <Text className="text-red-500 text-[9px] font-bold uppercase mt-0.5">No disponible</Text>
+                  )}
+                </View>
+
+                {/* Acciones */}
+                <View className="flex-row items-center gap-x-2">
+                  <TouchableOpacity
+                    onPress={() => openEditModal(item)}
+                    className="bg-neutral-900 w-9 h-9 rounded-xl items-center justify-center border border-neutral-800"
+                  >
+                    <FontAwesome name="pencil" size={14} color="#EAB308" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => toggleAvailability(item)}
+                    className={`w-9 h-9 rounded-xl items-center justify-center border ${
+                      item.isAvailable ? 'bg-green-500/10 border-green-500/20' : 'bg-neutral-900 border-neutral-800'
+                    }`}
+                  >
+                    <FontAwesome
+                      name={item.isAvailable ? 'eye' : 'eye-slash'}
+                      size={14}
+                      color={item.isAvailable ? '#22C55E' : '#525252'}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
         </View>
       </ScrollView>
 
-      {/* MODAL DE EDICIÓN/CREACIÓN */}
-      <Modal visible={isModalVisible} animationType="slide" transparent={true}>
-        <View className="flex-1 justify-end bg-black/90">
-          <View className="bg-neutral-900 rounded-t-[40px] p-8 h-[60%] border-t border-neutral-800 shadow-2xl">
-            <View className="flex-row justify-between items-center mb-8">
+      {/* ── MODAL ── */}
+      <Modal visible={isModalVisible} animationType="slide" transparent>
+        <View className="flex-1 justify-end bg-black/80">
+          <View className="bg-neutral-950 rounded-t-[40px] p-6 border-t border-neutral-800">
+            <View className="flex-row justify-between items-center mb-6">
               <Text className="text-white text-2xl font-black uppercase">
                 {editId ? 'Editar Extra' : 'Nuevo Extra'}
               </Text>
-              <TouchableOpacity onPress={resetForm}>
-                <FontAwesome name="times-circle" size={28} color="#525252" />
+              <TouchableOpacity onPress={resetForm} className="bg-neutral-900 w-10 h-10 rounded-2xl items-center justify-center border border-neutral-800">
+                <FontAwesome name="close" size={16} color="#EAB308" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              
-              <Text className="text-neutral-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Nombre del Extra</Text>
-              <TextInput 
-                value={newName} 
-                onChangeText={setNewName} 
-                className="bg-neutral-800 text-white p-4 rounded-xl mb-6 font-bold text-base" 
-                placeholder="Ej: Tocino Crujiente" 
-                placeholderTextColor="#444"
-              />
+            <Text className="text-neutral-400 font-bold mb-2 uppercase text-[10px]">Nombre</Text>
+            <TextInput value={newName} onChangeText={setNewName} className="bg-neutral-900 border border-neutral-800 text-white p-4 rounded-2xl mb-5 font-bold" placeholder="Ej: Tocino Crujiente" placeholderTextColor="#444" />
 
-              <Text className="text-neutral-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Precio Adicional ($)</Text>
-              <TextInput 
-                value={newPrice} 
-                onChangeText={setNewPrice} 
-                keyboardType="numeric" 
-                className="bg-neutral-800 text-white p-4 rounded-xl mb-10 font-bold text-base" 
-                placeholder="1500" 
-                placeholderTextColor="#444"
-              />
+            <Text className="text-neutral-400 font-bold mb-2 uppercase text-[10px]">Precio ($)</Text>
+            <TextInput value={newPrice} onChangeText={setNewPrice} keyboardType="numeric" className="bg-neutral-900 border border-neutral-800 text-white p-4 rounded-2xl mb-8 font-bold" placeholder="1000" placeholderTextColor="#444" />
 
-              <TouchableOpacity 
-                onPress={() => saveMutation.mutate()} 
-                disabled={saveMutation.isPending} 
-                className={`bg-yellow-500 p-5 rounded-2xl items-center mb-10 ${saveMutation.isPending && 'opacity-50'}`}
-              >
-                {saveMutation.isPending ? (
-                  <ActivityIndicator color="black" />
-                ) : (
-                  <Text className="text-black font-black uppercase text-lg">
-                    {editId ? 'Guardar Cambios' : 'Crear Extra'}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
+            <TouchableOpacity
+              onPress={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+              className={`bg-yellow-500 p-5 rounded-2xl items-center mb-6 ${saveMutation.isPending && 'opacity-50'}`}
+            >
+              {saveMutation.isPending ? <ActivityIndicator color="black" /> : (
+                <Text className="text-black font-black uppercase text-base">{editId ? 'Guardar Cambios' : 'Crear Extra'}</Text>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
