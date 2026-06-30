@@ -56,27 +56,26 @@ export default function AdminLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: '#0a0a0a' },
+        headerStyle: { backgroundColor: '#060606' },
         headerTintColor: '#EAB308',
         headerTitleAlign: 'center',
         headerShadowVisible: false,
         headerTitle: () => (
-          <View className="flex-row items-center gap-x-2">
+          <View className="flex-row items-center bg-neutral-900/80 px-4 py-2 rounded-full border border-yellow-500/20">
             <Image
               source={require('../../assets/images/menu/logo.png')}
-              className="w-5 h-5"
+              className="w-4 h-4 mr-2"
               resizeMode="contain"
             />
-            <Text className="text-white font-black uppercase text-sm">Admin</Text>
+            <Text className="text-white font-black tracking-widest uppercase text-[10px]">Administración</Text>
           </View>
         ),
         headerLeft: () => (
           <TouchableOpacity
             onPress={() => router.push('/(client)')}
-            className="flex-row items-center ml-2"
+            className="w-9 h-9 items-center justify-center bg-neutral-900 rounded-full border border-neutral-800 ml-4"
           >
-            <FontAwesome name="arrow-left" size={16} color="#EAB308" />
-            <Text className="text-yellow-500 font-bold ml-1.5 text-xs">Salir</Text>
+            <FontAwesome name="sign-out" size={14} color="#EAB308" style={{ marginLeft: 2 }} />
           </TouchableOpacity>
         ),
       }}

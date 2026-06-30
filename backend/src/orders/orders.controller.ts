@@ -11,11 +11,14 @@ import {
   Query,
   ParseIntPipe,
   Patch,
+  Res,
+  Header,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { AuthGuard } from '@nestjs/passport';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Request as ExpressRequest } from 'express';
+import type { Response } from 'express';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { OrderStatus } from '@prisma/client';
@@ -23,6 +26,9 @@ import { OrderStatus } from '@prisma/client';
 interface RequestWithUser extends ExpressRequest {
   user: { userId: number; email: string; role: string };
 }
+
+// Deep link para devolver al usuario a la app tras el pago
+const APP_DEEP_LINK = 'exp://192.168.0.15:8081/--/(client)/orders';
 
 @Controller('orders')
 @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
@@ -44,110 +50,130 @@ export class OrdersController {
     return this.ordersService.startPayment(id, req.user.userId);
   }
 
-  @Get('webpay/confirm')
-  async confirm(
-    @Query('token_ws') tokenWs?: string,
-    @Query('TBK_TOKEN') tbkToken?: string,
+  /**
+   * Endpoint de retorno de Mercado Pago (back_url success / failure / pending).
+   * Mercado Pago redirige aquí con los parámetros: payment_id, status, external_reference.
+   * Devolvemos una página HTML estilizada que muestra el resultado y contiene
+   * un botón / deep link para volver a la app.
+   */
+  @Get('mercadopago/feedback')
+  @Header('Content-Type', 'text/html; charset=utf-8')
+  async mercadoPagoFeedback(
+    @Query('payment_id') paymentId?: string,
+    @Query('status') status?: string,
+    @Query('external_reference') externalReference?: string,
+    @Res() res?: Response,
   ) {
     let htmlContent = '';
+    const ref = externalReference || '';
 
-    if (tbkToken) {
-      console.log(`Pago anulado por el usuario. Token: ${tbkToken}`);
-      // HTML de Pago Cancelado
-      htmlContent = `
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Pago Cancelado - La Jambre</title>
-          <style>
-            body { font-family: 'Arial', sans-serif; background-color: #000; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-            .container { background-color: #171717; padding: 40px; border-radius: 20px; text-align: center; border-top: 4px solid #EF4444; max-width: 90%; width: 400px; }
-            .icon { font-size: 60px; color: #EF4444; margin-bottom: 20px; }
-            h1 { font-size: 24px; margin-bottom: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
-            p { color: #9CA3AF; font-size: 14px; margin-bottom: 30px; line-height: 1.5; }
-            .btn { background-color: #EF4444; color: #fff; text-decoration: none; padding: 15px 30px; border-radius: 12px; font-weight: bold; text-transform: uppercase; display: inline-block; transition: opacity 0.2s; }
-            .btn:active { opacity: 0.8; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="icon">❌</div>
-            <h1>Pago Cancelado</h1>
-            <p>Has anulado el pago en Webpay. Tu pedido no ha sido procesado y sigue pendiente en tu carrito.</p>
-            <a href="exp://192.168.0.23:8081/--/(client)/orders" class="btn">Volver a la App</a>
-          </div>
-        </body>
-        </html>
-      `;
-    } else if (tokenWs) {
-      try {
-        await this.ordersService.confirmPayment(tokenWs);
-        // HTML de Pago Exitoso
+    try {
+      if (status === 'approved' || ref.startsWith('FREE-')) {
+        // Confirmar el pago en la base de datos
+        await this.ordersService.confirmPayment(paymentId || '', ref);
+
         htmlContent = `
           <!DOCTYPE html>
           <html lang="es">
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Pago Exitoso - La Jambre</title>
+            <title>¡Pedido Confirmado! - La Jambre</title>
             <style>
-              body { font-family: 'Arial', sans-serif; background-color: #000; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-              .container { background-color: #171717; padding: 40px; border-radius: 20px; text-align: center; border-top: 4px solid #EAB308; max-width: 90%; width: 400px; }
-              .icon { font-size: 60px; color: #EAB308; margin-bottom: 20px; }
-              h1 { font-size: 24px; margin-bottom: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #EAB308; }
-              p { color: #9CA3AF; font-size: 14px; margin-bottom: 30px; line-height: 1.5; }
-              .btn { background-color: #EAB308; color: #000; text-decoration: none; padding: 15px 30px; border-radius: 12px; font-weight: 900; text-transform: uppercase; display: inline-block; transition: opacity 0.2s; letter-spacing: 1px; }
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { font-family: 'Arial', sans-serif; background-color: #0a0a0a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+              .container { background-color: #141414; padding: 44px 36px; border-radius: 24px; text-align: center; border-top: 4px solid #EAB308; max-width: 420px; width: 100%; box-shadow: 0 0 60px rgba(234,179,8,0.15); }
+              .icon { font-size: 64px; margin-bottom: 24px; }
+              h1 { font-size: 26px; margin-bottom: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #EAB308; }
+              p { color: #9CA3AF; font-size: 14px; margin-bottom: 32px; line-height: 1.6; }
+              .btn { background-color: #EAB308; color: #000; text-decoration: none; padding: 16px 32px; border-radius: 14px; font-weight: 900; text-transform: uppercase; display: inline-block; letter-spacing: 1px; font-size: 13px; transition: opacity 0.2s; }
               .btn:active { opacity: 0.8; }
+              .badge { display: inline-block; margin-top: 20px; padding: 6px 14px; background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.3); border-radius: 20px; color: #EAB308; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
             </style>
           </head>
           <body>
             <div class="container">
               <div class="icon">🔥</div>
               <h1>¡Pedido Confirmado!</h1>
-              <p>Tu pago fue procesado con éxito y la cocina ya está preparando tu comida.</p>
-              <a href="exp://192.168.0.23:8081/--/(client)/orders" class="btn">Ver mi pedido</a>
+              <p>Tu pago fue procesado con éxito y la cocina ya está preparando tu comida. ¡Pronto estará listo!</p>
+              <a href="${APP_DEEP_LINK}" class="btn">Ver mi pedido →</a>
+              <div class="badge">PAGADO CON ÉXITO ✓</div>
             </div>
           </body>
           </html>
         `;
-      } catch (error) {
-        console.error('Error procesando el pago en Transbank:', error); // 👈 Usamos la variable aquí
-        // HTML de Pago Fallido/Rechazado por el banco
+      } else if (status === 'pending') {
         htmlContent = `
           <!DOCTYPE html>
           <html lang="es">
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Error de Pago - La Jambre</title>
+            <title>Pago Pendiente - La Jambre</title>
             <style>
-              body { font-family: 'Arial', sans-serif; background-color: #000; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-              .container { background-color: #171717; padding: 40px; border-radius: 20px; text-align: center; border-top: 4px solid #EF4444; max-width: 90%; width: 400px; }
-              .icon { font-size: 60px; color: #EF4444; margin-bottom: 20px; }
-              h1 { font-size: 24px; margin-bottom: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
-              p { color: #9CA3AF; font-size: 14px; margin-bottom: 30px; line-height: 1.5; }
-              .btn { background-color: #EF4444; color: #fff; text-decoration: none; padding: 15px 30px; border-radius: 12px; font-weight: bold; text-transform: uppercase; display: inline-block; transition: opacity 0.2s; }
-              .btn:active { opacity: 0.8; }
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { font-family: 'Arial', sans-serif; background-color: #0a0a0a; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+              .container { background-color: #141414; padding: 44px 36px; border-radius: 24px; text-align: center; border-top: 4px solid #F59E0B; max-width: 420px; width: 100%; box-shadow: 0 0 60px rgba(245,158,11,0.15); }
+              .icon { font-size: 64px; margin-bottom: 24px; }
+              h1 { font-size: 26px; margin-bottom: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #F59E0B; }
+              p { color: #9CA3AF; font-size: 14px; margin-bottom: 32px; line-height: 1.6; }
+              .btn { background-color: #F59E0B; color: #000; text-decoration: none; padding: 16px 32px; border-radius: 14px; font-weight: 900; text-transform: uppercase; display: inline-block; letter-spacing: 1px; font-size: 13px; }
             </style>
           </head>
           <body>
             <div class="container">
-              <div class="icon">⚠️</div>
+              <div class="icon">⏳</div>
+              <h1>Pago Pendiente</h1>
+              <p>Tu pago está siendo procesado. Te notificaremos cuando sea confirmado. Puedes revisar el estado de tu pedido en la app.</p>
+              <a href="${APP_DEEP_LINK}" class="btn">Ver mis pedidos →</a>
+            </div>
+          </body>
+          </html>
+        `;
+      } else {
+        // failure o cualquier otro estado
+        htmlContent = `
+          <!DOCTYPE html>
+          <html lang="es">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Pago Rechazado - La Jambre</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { font-family: 'Arial', sans-serif; background-color: #0a0a0a; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+              .container { background-color: #141414; padding: 44px 36px; border-radius: 24px; text-align: center; border-top: 4px solid #EF4444; max-width: 420px; width: 100%; box-shadow: 0 0 60px rgba(239,68,68,0.12); }
+              .icon { font-size: 64px; margin-bottom: 24px; }
+              h1 { font-size: 26px; margin-bottom: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #EF4444; }
+              p { color: #9CA3AF; font-size: 14px; margin-bottom: 32px; line-height: 1.6; }
+              .btn { background-color: #EF4444; color: #fff; text-decoration: none; padding: 16px 32px; border-radius: 14px; font-weight: 900; text-transform: uppercase; display: inline-block; letter-spacing: 1px; font-size: 13px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="icon">❌</div>
               <h1>Pago Rechazado</h1>
-              <p>Tu banco ha rechazado la transacción. Por favor, intenta con otro medio de pago.</p>
-              <a href="exp://192.168.0.23:8081/--/(client)/orders" class="btn">Volver a la App</a>
+              <p>Tu pago no pudo ser procesado. Por favor intenta nuevamente con otro medio de pago. Tu pedido sigue activo.</p>
+              <a href="${APP_DEEP_LINK}" class="btn">Volver a la App →</a>
             </div>
           </body>
           </html>
         `;
       }
-    } else {
-      htmlContent = `<h1>Error: No se recibieron tokens válidos de Transbank</h1>`;
+    } catch (error) {
+      console.error('Error en feedback de MercadoPago:', error);
+      htmlContent = `
+        <!DOCTYPE html><html><body style="background:#0a0a0a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Arial">
+        <div style="text-align:center;padding:40px">
+          <h1 style="color:#EF4444">Error procesando el pago</h1>
+          <p style="color:#9CA3AF;margin-top:12px">Contacta al local para verificar tu pedido.</p>
+          <a href="${APP_DEEP_LINK}" style="display:inline-block;margin-top:24px;padding:14px 28px;background:#EAB308;color:#000;border-radius:12px;font-weight:900;text-decoration:none">Volver a la App</a>
+        </div>
+        </body></html>
+      `;
     }
 
-    return htmlContent;
+    res?.send(htmlContent);
   }
 
   @Get('admin/all')
@@ -178,7 +204,6 @@ export class OrdersController {
     return this.ordersService.findOne(id, req.user.userId);
   }
 
-  // 👇 AHORA SÍ: Solo los administradores pueden cambiar el estado
   @Patch(':id/status')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ADMIN')

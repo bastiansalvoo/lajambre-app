@@ -1,7 +1,7 @@
 import { Tabs, useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
 import { View, Text, Image, TouchableOpacity, Alert } from 'react-native';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { useCartStore } from '../../src/store/cartStore';
 
@@ -115,9 +115,5 @@ function TabLayoutContent() {
 }
 
 export default function TabLayout() {
-  return (
-    <SafeAreaProvider>
-      <TabLayoutContent />
-    </SafeAreaProvider>
-  );
+  return <TabLayoutContent />;
 }

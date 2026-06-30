@@ -39,13 +39,14 @@ export default function MenuScreen() {
   // ── ANIMACIONES ──
   const scrollY = useSharedValue(0);
   const pulseAnim = useSharedValue(1);
+  const shimmerAnim = useSharedValue(0);
 
   // Parallax del banner al scrollear
   const bannerParallax = useAnimatedStyle(() => ({
     transform: [{ translateY: interpolate(scrollY.value, [0, 300], [0, 90], Extrapolation.CLAMP) }],
   }));
 
-  // Latido sutil de los botones +
+  // Animaciones cíclicas (Latido y Brillo)
   useEffect(() => {
     pulseAnim.value = withRepeat(
       withSequence(
@@ -55,7 +56,24 @@ export default function MenuScreen() {
       -1,
       true,
     );
+
+    shimmerAnim.value = withRepeat(
+      withSequence(
+        withTiming(0, { duration: 3000 }), // Espera 3 segundos
+        withTiming(1, { duration: 1200 }), // Cruza rápido en 1.2s
+        withTiming(0, { duration: 0 })     // Reinicia sin transición
+      ),
+      -1,
+      false
+    );
   }, []);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: '25deg' },
+      { translateX: interpolate(shimmerAnim.value, [0, 1], [-150, 250], Extrapolation.CLAMP) }
+    ],
+  }));
 
   const pulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseAnim.value }],
@@ -255,15 +273,26 @@ export default function MenuScreen() {
                           layout={LinearTransition.springify()}
                         >
                           <TouchableOpacity activeOpacity={0.9} onPress={() => openExtrasModal(product)}>
-                            <View className="relative">
+                            <View className="relative rounded-2xl border border-yellow-500/30 overflow-hidden" style={{ shadowColor: '#EAB308', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8, backgroundColor: '#000' }}>
                               <Image 
                                 source={product.image ? { uri: product.image.startsWith('/') ? API_BASE_URL + product.image : product.image } : require('../../assets/images/menu/bbq.jpg')} 
-                                className="w-full h-44 rounded-2xl bg-neutral-900 border border-neutral-800/20"
+                                className="w-full h-44 bg-neutral-900"
                                 resizeMode="cover"
-                                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 }}
                               />
-                              <View className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded-lg">
-                                <Text className="text-yellow-500 font-bold text-xs">${product.price.toLocaleString('es-CL')}</Text>
+                              
+                              {/* Efecto de Brillo Cruzado (Shimmer) */}
+                              <Animated.View 
+                                style={[{
+                                  position: 'absolute',
+                                  top: -50, bottom: -50, width: 30,
+                                  backgroundColor: 'rgba(255,255,255,0.4)',
+                                  shadowColor: 'white', shadowOpacity: 1, shadowRadius: 10, elevation: 5,
+                                  zIndex: 10
+                                }, shimmerStyle]}
+                              />
+
+                              <View className="absolute bottom-2 left-2 bg-black/80 px-2.5 py-1 rounded-lg border border-yellow-500/20 z-20">
+                                <Text className="text-yellow-500 font-black text-[11px] tracking-wider">${product.price.toLocaleString('es-CL')}</Text>
                               </View>
                             </View>
                             
@@ -348,7 +377,8 @@ export default function MenuScreen() {
               <Animated.View style={addToCartStyle}>
                 <TouchableOpacity 
                   onPress={handleAddToCart}
-                  className="bg-yellow-500 py-4 rounded-2xl flex-row justify-between items-center px-6 shadow-lg shadow-yellow-500/20 active:bg-yellow-600"
+                  className="bg-yellow-500 py-4 rounded-2xl flex-row justify-between items-center px-6 shadow-lg shadow-yellow-500/20"
+                  activeOpacity={0.75}
                 >
                   <Text className="text-black font-black uppercase text-lg">Agregar al Carrito</Text>
                   <Text className="text-black font-black text-lg">${currentModalTotal.toLocaleString('es-CL')}</Text>

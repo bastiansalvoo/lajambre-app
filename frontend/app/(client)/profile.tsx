@@ -1,204 +1,396 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import {
+  View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
+  RefreshControl, Image, Animated, Dimensions, Easing, StyleSheet
+} from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
-import { api } from '../../src/api/api';
+import { api, clearSession } from '../../src/api/api';
 import { useCartStore } from '../../src/store/cartStore';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+const { width: W } = Dimensions.get('window');
+
+// Mapeo de nombres de premios a íconos FontAwesome (aproximación)
+const getRewardIcon = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes('bebida') || n.includes('jugo') || n.includes('soda')) return 'glass';
+  if (n.includes('delivery') || n.includes('envío')) return 'motorcycle';
+  if (n.includes('burger') || n.includes('hamburguesa')) return 'cutlery'; // No hay burger en FA clásico
+  if (n.includes('papas') || n.includes('fries')) return 'archive'; // Cajita de papas?
+  return 'star';
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tarjeta VIP Flotante con Reflejo (Glare)
+// ─────────────────────────────────────────────────────────────────────────────
+function VIPCard({ profile, rewardsData, tierColor, tierLabel }: any) {
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const glareAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Animación de flotación suave
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, { toValue: 1, duration: 3000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0, duration: 3000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    ).start();
+
+    // Animación del reflejo pasando por la tarjeta cada cierto tiempo
+    Animated.loop(
+      Animated.sequence([
+        Animated.delay(2000),
+        Animated.timing(glareAnim, { toValue: 1, duration: 1500, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(glareAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
+        Animated.delay(4000),
+      ])
+    ).start();
+  }, []);
+
+  const translateY = floatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -12] });
+  const glareTranslateX = glareAnim.interpolate({ inputRange: [0, 1], outputRange: [-W, W * 1.5] });
+
+  const pts = rewardsData?.puntosActuales ?? 0;
+  const name = profile?.nombre ?? profile?.email?.split('@')[0] ?? 'Lajambre VIP';
+
+  return (
+    <Animated.View style={{ transform: [{ translateY }], marginHorizontal: 20, marginTop: 10, marginBottom: 30 }}>
+      {/* Sombra de la tarjeta */}
+      <View style={{
+        position: 'absolute', top: 20, left: 10, right: 10, bottom: -10,
+        backgroundColor: tierColor, opacity: 0.15, borderRadius: 20,
+        shadowColor: tierColor, shadowOpacity: 1, shadowRadius: 20, elevation: 10
+      }} />
+
+      {/* Contenedor Principal de la Tarjeta (Relación de aspecto 1.6:1 tipo tarjeta de crédito) */}
+      <View style={{
+        width: '100%', aspectRatio: 1.58, borderRadius: 24, overflow: 'hidden',
+        borderWidth: 1, borderColor: tierColor + '40',
+        backgroundColor: '#111',
+      }}>
+        <Image
+          source={require('../../assets/images/menu/banner.jpg')}
+          style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0.15 }}
+          resizeMode="cover"
+        />
+        
+        {/* Gradiente principal encima de la imagen para oscurecer y dar color */}
+        <LinearGradient
+          colors={['rgba(20,20,20,0.8)', 'rgba(0,0,0,0.95)']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={{ position: 'absolute', width: '100%', height: '100%' }}
+        />
+
+        {/* Círculo de luz detrás del texto */}
+        <View style={{
+          position: 'absolute', top: -50, right: -50, width: 200, height: 200,
+          borderRadius: 100, backgroundColor: tierColor, opacity: 0.1,
+          shadowColor: tierColor, shadowOpacity: 1, shadowRadius: 50, elevation: 10
+        }} />
+
+        {/* Contenido de la Tarjeta */}
+        <View style={{ flex: 1, padding: 22, justifyContent: 'space-between' }}>
+          
+          {/* Header de la tarjeta */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <View>
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: 2 }}>LAJAMBRE</Text>
+              <Text style={{ color: tierColor, fontSize: 8, fontWeight: '900', letterSpacing: 4, textTransform: 'uppercase', marginTop: 2 }}>Club Member</Text>
+            </View>
+            <View style={{
+              backgroundColor: tierColor + '20', paddingHorizontal: 12, paddingVertical: 6,
+              borderRadius: 12, borderWidth: 1, borderColor: tierColor + '40'
+            }}>
+              <Text style={{ color: tierColor, fontSize: 10, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' }}>
+                {tierLabel}
+              </Text>
+            </View>
+          </View>
+
+          {/* Body / Footer de la tarjeta */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <View>
+              <Text style={{ color: '#888', fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 4 }}>
+                Titular
+              </Text>
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 }}>
+                {name}
+              </Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ color: tierColor, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 2, marginBottom: -2 }}>
+                Puntos
+              </Text>
+              <Text style={{ color: '#fff', fontSize: 36, fontWeight: '900', letterSpacing: -1 }}>
+                {pts.toLocaleString()}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Reflejo de luz (Glare) pasando por encima */}
+        <Animated.View style={{
+          position: 'absolute', top: 0, bottom: 0, width: 100,
+          transform: [{ translateX: glareTranslateX }, { skewX: '-20deg' }],
+        }}>
+          <LinearGradient
+            colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.15)', 'rgba(255,255,255,0)']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={{ width: '100%', height: '100%' }}
+          />
+        </Animated.View>
+
+      </View>
+    </Animated.View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pantalla Principal
+// ─────────────────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
-  const [rewardsData, setRewardsData] = useState<any>(null);
+  const [profile, setProfile]     = useState<any>(null);
+  const [rewardsData, setRewards] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = async () => {
     try {
       const token = await SecureStore.getItemAsync('userToken');
-      
-      if (!token) {
-        router.replace('/(auth)/login');
-        return;
-      }
-
-      const [profileRes, rewardsRes] = await Promise.all([
-        api.get('/auth/perfil'),
-        api.get('/auth/recompensas')
-      ]);
-      setProfile(profileRes.data.usuario);
-      setRewardsData(rewardsRes.data);
-
+      if (!token) { router.replace('/(auth)/login'); return; }
+      const [pRes, rRes] = await Promise.all([api.get('/auth/perfil'), api.get('/auth/recompensas')]);
+      setProfile(pRes.data.usuario);
+      setRewards(rRes.data);
     } catch (error: any) {
-      if (error.response?.status === 401) {
-        await SecureStore.deleteItemAsync('userToken');
-        await SecureStore.deleteItemAsync('userRole');
-        delete api.defaults.headers.common['Authorization'];
-        router.replace('/(auth)/login');
-      }
-    } finally {
-      setIsLoading(false);
-      setRefreshing(false);
-    }
+      if (error.response?.status === 401) { await clearSession(); router.replace('/(auth)/login'); }
+    } finally { setIsLoading(false); setRefreshing(false); }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [])
-  );
+  useFocusEffect(useCallback(() => { fetchData(); }, []));
 
   const handleLogout = async () => {
-    // Limpiamos el carrito al cerrar sesión
     useCartStore.getState().clearCart();
-    
-    await SecureStore.deleteItemAsync('userToken');
-    await SecureStore.deleteItemAsync('userRole');
-    delete api.defaults.headers.common['Authorization'];
+    await clearSession();
     router.replace('/(auth)/login');
   };
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-black justify-center items-center">
+      <View style={{ flex: 1, backgroundColor: '#050505', justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#EAB308" />
       </View>
     );
   }
 
-  const nextReward = rewardsData?.recompensas.find((r: any) => !r.alcanzado);
-  const progressPercentage = nextReward 
-    ? Math.min((rewardsData.puntosActuales / nextReward.puntosRequeridos) * 100, 100) 
-    : 100;
-
-  const isGold = rewardsData?.nivelActual?.includes('Oro');
-  const isSilver = rewardsData?.nivelActual?.includes('Plata');
-  const cardBorderColor = isGold ? 'border-yellow-400' : isSilver ? 'border-gray-400' : 'border-orange-500/50';
-  const cardShadow = isGold ? 'shadow-yellow-500/30' : isSilver ? 'shadow-gray-400/20' : 'shadow-orange-500/10';
+  const nextReward      = rewardsData?.recompensas.find((r: any) => !r.alcanzado);
+  const progressPct     = nextReward ? Math.min((rewardsData.puntosActuales / nextReward.puntosRequeridos) * 100, 100) : 100;
+  
+  // Colores mejorados y vibrantes para los Tiers
+  const isGold          = rewardsData?.nivelActual?.includes('Oro');
+  const isSilver        = rewardsData?.nivelActual?.includes('Plata');
+  // Usamos un dorado intenso, un plateado brillante, o un cobre/bronce cálido (no naranja fosforescente)
+  const tierColor       = isGold ? '#FACC15' : isSilver ? '#94A3B8' : '#D97706'; 
+  const tierLabel       = rewardsData?.nivelActual ?? 'Bronce';
 
   return (
-    <View className="flex-1 bg-black">
-      <ScrollView 
-        className="flex-1"
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }} edges={['top']}>
+      
+      {/* ── Fondo Global de la Pantalla ── */}
+      <View style={{ position: 'absolute', width: '100%', height: '100%', zIndex: -1 }}>
+        <Image
+          source={require('../../assets/images/menu/banner.jpg')}
+          style={{ width: '100%', height: '100%', opacity: 0.6 }}
+          resizeMode="cover"
+        />
+        <View style={{ position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.65)' }} />
+      </View>
+
+      {/* ── Brillo de fondo global ── */}
+      <View style={{
+        position: 'absolute', top: -100, left: -100, width: W, height: W,
+        borderRadius: W/2, backgroundColor: tierColor, opacity: 0.05,
+        shadowColor: tierColor, shadowOpacity: 1, shadowRadius: 100, elevation: 10
+      }} />
+
+      <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchData();}} tintColor="#EAB308" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={tierColor} />}
+        contentContainerStyle={{ paddingTop: 20 }}
       >
-        
-        <View className="px-6 pt-8 pb-4 flex-row justify-between items-center">
-          <View>
-            <Text className="text-white text-2xl font-black uppercase tracking-widest">Mi Perfil</Text>
-            <Text className="text-neutral-500 font-bold text-xs">{profile?.email}</Text>
-          </View>
-          <View className="w-12 h-12 bg-neutral-900 rounded-full border border-neutral-800 items-center justify-center">
-            <FontAwesome name="user" size={20} color="#EAB308" />
-          </View>
+
+        {/* Título de la sección oculta o pequeña */}
+        <View style={{ paddingHorizontal: 24, marginBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: 1 }}>Mi Perfil</Text>
+          {/* Línea bonita con degradado hacia transparente */}
+          <LinearGradient
+            colors={[tierColor + '80', 'transparent']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={{ flex: 1, height: 2, marginLeft: 16, borderRadius: 1 }}
+          />
+          <TouchableOpacity onPress={handleLogout} style={{ padding: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, marginLeft: 16 }}>
+            <FontAwesome name="sign-out" size={16} color="#888" />
+          </TouchableOpacity>
         </View>
 
-        <View className={`mx-5 my-4 bg-neutral-900 border ${cardBorderColor} rounded-3xl p-6 shadow-xl ${cardShadow} relative overflow-hidden`}>
-          <View className="absolute -right-10 -top-10 w-40 h-40 bg-yellow-500/5 rounded-full blur-3xl" />
-          
-          <View className="flex-row justify-between items-start mb-6">
-            <View>
-              <Text className="text-neutral-400 text-[10px] font-bold uppercase tracking-widest mb-1">Membresía Lajambre</Text>
-              <Text className={`text-lg font-black uppercase tracking-wider ${isGold ? 'text-yellow-400' : isSilver ? 'text-gray-300' : 'text-orange-400'}`}>
-                {rewardsData?.nivelActual}
+        {/* ═══════════════════════════════════════════════
+            TARJETA VIP FLOTANTE
+        ═══════════════════════════════════════════════ */}
+        <VIPCard profile={profile} rewardsData={rewardsData} tierColor={tierColor} tierLabel={tierLabel} />
+
+        {/* ═══════════════════════════════════════════════
+            BARRA DE PROGRESO (NEXT REWARD)
+        ═══════════════════════════════════════════════ */}
+        {nextReward && (
+          <View style={{ paddingHorizontal: 24, marginBottom: 30 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
+              <Text style={{ color: '#888', fontSize: 11, fontWeight: '700' }}>
+                Faltan <Text style={{ color: tierColor, fontWeight: '900' }}>{nextReward.faltan} pts</Text> para
+              </Text>
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 }}>
+                {nextReward.nombre}
               </Text>
             </View>
-            <FontAwesome name="star" size={24} color={isGold ? '#FACC15' : isSilver ? '#D1D5DB' : '#F97316'} />
+            <View style={{ width: '100%', height: 6, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
+              <LinearGradient
+                colors={[tierColor, tierColor + '80']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={{ width: `${progressPct}%`, height: '100%', borderRadius: 3 }}
+              />
+            </View>
           </View>
-          
-          <Text className="text-neutral-500 text-[10px] font-bold uppercase tracking-widest">Saldo Disponible</Text>
-          <View className="flex-row items-baseline mt-1 mb-6">
-            <Text className="text-white text-5xl font-black">{rewardsData?.puntosActuales || 0}</Text>
-            <Text className="text-yellow-500 font-bold ml-2 uppercase text-xs">pts</Text>
+        )}
+
+        {/* ═══════════════════════════════════════════════
+            PREMIOS GLASSMORPHIC
+        ═══════════════════════════════════════════════ */}
+        <View style={{ marginBottom: 36 }}>
+          <View style={{ paddingHorizontal: 24, marginBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 1 }}>
+              PREMIOS
+            </Text>
+            <LinearGradient
+              colors={[tierColor + '80', 'transparent']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={{ flex: 1, height: 2, marginLeft: 16, borderRadius: 1 }}
+            />
           </View>
 
-          <View className="bg-black/50 p-4 rounded-2xl border border-neutral-800">
-            {nextReward ? (
-              <>
-                <View className="flex-row justify-between items-end mb-2">
-                  <Text className="text-neutral-300 text-xs font-bold">
-                    Faltan <Text className="text-yellow-500 font-black">{nextReward.faltan} pts</Text> para:
-                  </Text>
-                  <Text className="text-white font-black text-xs uppercase">{nextReward.icono} {nextReward.nombre}</Text>
-                </View>
-                <View className="w-full h-2 bg-neutral-800 rounded-full overflow-hidden">
-                  <View 
-                    className="h-full bg-yellow-500 rounded-full" 
-                    style={{ width: `${progressPercentage}%` }} 
-                  />
-                </View>
-              </>
-            ) : (
-              <Text className="text-yellow-500 font-black text-center text-xs uppercase tracking-widest">¡Has desbloqueado todos los premios!</Text>
-            )}
-          </View>
-        </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+            {rewardsData?.recompensas?.map((premio: any, idx: number) => {
+              const unlocked = premio.alcanzado;
+              const iconName = getRewardIcon(premio.nombre);
+              
+              return (
+                <View key={premio.id} style={{
+                  width: 130, marginRight: 16, borderRadius: 20, overflow: 'hidden',
+                  backgroundColor: unlocked ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.3)',
+                  borderWidth: 1, borderColor: unlocked ? tierColor + '40' : 'rgba(255,255,255,0.03)',
+                }}>
+                  {unlocked && (
+                    <LinearGradient
+                      colors={[tierColor + '15', 'transparent']}
+                      start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                      style={{ position: 'absolute', width: '100%', height: '100%' }}
+                    />
+                  )}
+                  
+                  <View style={{ padding: 16, alignItems: 'center' }}>
+                    <View style={{
+                      width: 48, height: 48, borderRadius: 24, marginBottom: 12,
+                      backgroundColor: unlocked ? tierColor + '20' : 'rgba(255,255,255,0.02)',
+                      alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <FontAwesome
+                        name={unlocked ? iconName : 'lock'}
+                        size={20}
+                        color={unlocked ? tierColor : '#444'}
+                      />
+                    </View>
 
-        <View className="mt-4 mb-8">
-          <View className="px-6 mb-4 flex-row items-center">
-            <View className="h-4 w-1 bg-yellow-500 mr-2 rounded-full" />
-            <Text className="text-white text-lg font-bold uppercase tracking-widest">Premios Disponibles</Text>
-          </View>
-          
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-5">
-            {rewardsData?.recompensas?.map((premio: any) => (
-              <View 
-                key={premio.id} 
-                className={`w-36 p-4 rounded-2xl mr-4 border ${premio.alcanzado ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-neutral-900 border-neutral-800'}`}
-              >
-                <Text className="text-2xl mb-2">{premio.icono}</Text>
-                <Text className="text-white font-black uppercase text-xs mb-1 h-8" numberOfLines={2}>{premio.nombre}</Text>
-                <View className={`px-2 py-1 rounded mt-2 self-start ${premio.alcanzado ? 'bg-yellow-500' : 'bg-neutral-800'}`}>
-                  <Text className={`text-[10px] font-black uppercase ${premio.alcanzado ? 'text-black' : 'text-neutral-500'}`}>
-                    {premio.puntosRequeridos} pts
-                  </Text>
+                    <Text style={{
+                      color: unlocked ? '#fff' : '#666',
+                      fontWeight: '800', fontSize: 10, textAlign: 'center',
+                      textTransform: 'uppercase', letterSpacing: 1, minHeight: 28,
+                    }} numberOfLines={2}>
+                      {premio.nombre}
+                    </Text>
+
+                    <View style={{
+                      marginTop: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
+                      backgroundColor: unlocked ? tierColor : 'rgba(255,255,255,0.03)',
+                    }}>
+                      <Text style={{
+                        fontWeight: '900', fontSize: 9, letterSpacing: 1,
+                        color: unlocked ? '#000' : '#555',
+                      }}>
+                        {premio.puntosRequeridos} PTS
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-              </View>
-            ))}
-            <View className="w-5" />
+              );
+            })}
           </ScrollView>
         </View>
 
-        <View className="px-5 mb-8">
-          <View className="mb-4 flex-row items-center">
-            <View className="h-4 w-1 bg-neutral-500 mr-2 rounded-full" />
-            <Text className="text-white text-lg font-bold uppercase tracking-widest">Movimientos</Text>
+        {/* ═══════════════════════════════════════════════
+            MOVIMIENTOS MINIMALISTAS
+        ═══════════════════════════════════════════════ */}
+        <View style={{ paddingHorizontal: 24, marginBottom: 40 }}>
+          <View style={{ marginBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 1 }}>
+              HISTORIAL
+            </Text>
+            <LinearGradient
+              colors={[tierColor + '80', 'transparent']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={{ flex: 1, height: 2, marginLeft: 16, borderRadius: 1 }}
+            />
           </View>
-          
-          <View className="bg-neutral-900 rounded-3xl p-5 border border-neutral-800">
+
+          <View style={{
+            backgroundColor: '#0a0a0a', borderRadius: 24,
+            borderWidth: 1.5, borderColor: tierColor + '25',
+            shadowColor: tierColor, shadowOpacity: 0.1, shadowRadius: 15, elevation: 8
+          }}>
             {rewardsData?.historial?.length === 0 ? (
-              <View className="items-center py-4">
-                <FontAwesome name="history" size={30} color="#404040" />
-                <Text className="text-neutral-500 text-xs font-bold uppercase tracking-widest mt-3">Sin movimientos</Text>
+              <View style={{ padding: 40, alignItems: 'center' }}>
+                <FontAwesome name="file-text-o" size={24} color="#333" />
+                <Text style={{ color: '#555', fontSize: 11, fontWeight: '700', marginTop: 12, letterSpacing: 1 }}>NO HAY MOVIMIENTOS</Text>
               </View>
             ) : (
               rewardsData?.historial?.map((tx: any, index: number) => {
-                const isEarned = tx.tipo === 'EARNED';
+                const isEarned   = tx.tipo === 'EARNED';
                 const isRedeemed = tx.tipo === 'REDEEMED';
+                const txColor    = isEarned ? '#10B981' : isRedeemed ? '#3B82F6' : '#EF4444';
+                const txIcon     = isEarned ? 'plus' : isRedeemed ? 'gift' : 'minus';
                 
                 return (
                   <View key={tx.id}>
-                    <View className="flex-row items-center justify-between py-3">
-                      <View className="flex-row items-center flex-1">
-                        <View className={`w-10 h-10 rounded-full items-center justify-center mr-4 ${isEarned ? 'bg-green-500/10 border border-green-500/20' : isRedeemed ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
-                          <FontAwesome name={isEarned ? "arrow-up" : isRedeemed ? "gift" : "calendar-times-o"} size={14} color={isEarned ? "#22C55E" : isRedeemed ? "#3B82F6" : "#EF4444"} />
-                        </View>
-                        <View className="flex-1 pr-2">
-                          <Text className="text-neutral-200 font-bold text-sm uppercase tracking-wide" numberOfLines={1}>
-                            {isEarned ? 'Puntos Ganados' : isRedeemed ? 'Premio Canjeado' : 'Puntos Vencidos'}
-                          </Text>
-                          <Text className="text-neutral-500 text-[10px] font-bold mt-0.5">
-                            {new Date(tx.fecha).toLocaleDateString('es-CL')}
-                          </Text>
-                        </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16 }}>
+                      <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: txColor + '15', alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+                        <FontAwesome name={txIcon} size={12} color={txColor} />
                       </View>
-                      <Text className={`font-black text-base ${isEarned ? 'text-green-500' : isRedeemed ? 'text-blue-500' : 'text-red-500'}`}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                          {isEarned ? 'Compra en Local' : isRedeemed ? 'Canje de Premio' : 'Puntos Expirados'}
+                        </Text>
+                        <Text style={{ color: '#666', fontSize: 10, marginTop: 2 }}>
+                          {new Date(tx.fecha).toLocaleDateString('es-CL')}
+                        </Text>
+                      </View>
+                      <Text style={{ color: txColor, fontSize: 16, fontWeight: '900' }}>
                         {isEarned ? '+' : ''}{tx.puntos}
                       </Text>
                     </View>
-                    {index < rewardsData.historial.length - 1 && <View className="h-[1px] w-full bg-neutral-800" />}
+                    {index < rewardsData.historial.length - 1 && (
+                      <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.03)', marginHorizontal: 16 }} />
+                    )}
                   </View>
                 );
               })
@@ -206,15 +398,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <TouchableOpacity 
-          onPress={handleLogout}
-          className="mx-5 mb-20 bg-neutral-900 border border-red-500/20 py-4 rounded-2xl flex-row justify-center items-center"
-        >
-          <FontAwesome name="sign-out" size={16} color="#EF4444" />
-          <Text className="text-red-500 font-black uppercase ml-3 tracking-widest text-sm">Cerrar Sesión</Text>
-        </TouchableOpacity>
-
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

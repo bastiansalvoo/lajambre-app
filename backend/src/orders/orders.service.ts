@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus, PointTransactionType, Prisma } from '@prisma/client';
-import { WebpayService } from './webpay.service';
+import { MercadoPagoService } from './mercadopago.service';
 
 export type OrderWithDetails = Prisma.OrderGetPayload<{
   include: {
@@ -22,22 +22,13 @@ export type OrderWithDetails = Prisma.OrderGetPayload<{
   };
 }>;
 
-export interface WebpayCreateResponse {
-  token: string;
-  url: string;
-}
-export interface WebpayCommitResponse {
-  status: string;
-  vci?: string;
-  amount?: number;
-  buy_order?: string;
-}
+
 
 @Injectable()
 export class OrdersService {
   constructor(
     private prisma: PrismaService,
-    private webpay: WebpayService,
+    private mercadoPago: MercadoPagoService,
     private configService: ConfigService,
   ) {}
 
@@ -249,115 +240,152 @@ export class OrdersService {
     if (order.status !== 'PENDIENTE')
       throw new BadRequestException('El pedido no está pendiente.');
 
-    const buyOrder = `ORD-${order.id}-${Math.floor(Math.random() * 1000)}`;
-
     const apiHost = this.configService.get<string>('API_HOST', 'localhost');
     const port = this.configService.get<string>('PORT', '3000');
-    const returnUrl =
-      this.configService.get<string>('WEBPAY_RETURN_URL') ||
-      `http://${apiHost}:${port}/orders/webpay/confirm`;
+    const baseUrl = this.configService.get<string>('API_BASE_URL') ||
+      `http://${apiHost}:${port}`;
 
-    // Si pagó 100% con puntos
+    const feedbackUrl = `${baseUrl}/orders/mercadopago/feedback`;
+
+    // Si pagó 100% con puntos, confirmar directamente sin pasar por pasarela
     if (order.total === 0) {
       await this.prisma.order.update({
         where: { id: order.id },
         data: { status: 'PAGADO', buyOrder: `FREE-${order.id}` },
       });
       return {
-        token: 'GRATIS',
-        url: `http://${apiHost}:${port}/orders/webpay/confirm?token_ws=GRATIS`,
+        checkout_url: `${baseUrl}/orders/mercadopago/feedback?status=approved&external_reference=FREE-${order.id}`,
+        is_free: true,
       };
     }
 
-    const response = (await this.webpay.create(
-      buyOrder,
-      `USR-${userId}`,
-      order.total,
-      returnUrl,
-    )) as WebpayCreateResponse;
+    const externalReference = `ORDER-${order.id}-USR-${userId}`;
+
+    // Construir items desde la orden
+    const items = await this.prisma.orderItem.findMany({
+      where: { orderId: order.id },
+      include: { product: true },
+    });
+
+    const mpItems = items.map((item) => ({
+      title: item.product.name,
+      quantity: item.quantity,
+      unit_price: item.priceAtPurchase,
+    }));
+
+    // Obtener email del usuario
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    const preference = await this.mercadoPago.createPreference({
+      orderId: order.id,
+      items: mpItems,
+      payer: { email: user?.email || 'test@lajambre.cl' },
+      backUrls: {
+        success: feedbackUrl,
+        failure: feedbackUrl,
+        pending: feedbackUrl,
+      },
+      externalReference,
+    });
+
+    // Guardar referencia externa en la orden
     await this.prisma.order.update({
       where: { id: order.id },
-      data: { buyOrder, sessionId: response.token },
+      data: { buyOrder: externalReference, sessionId: preference.preferenceId },
     });
-    return response;
+
+    // En modo sandbox usamos sandbox_init_point
+    const isSandbox = !this.configService.get<string>('MERCADOPAGO_ACCESS_TOKEN', '').startsWith('APP_USR-') ||
+      this.configService.get<string>('MERCADOPAGO_ENV', 'sandbox') === 'sandbox';
+
+    return {
+      checkout_url: isSandbox ? preference.sandbox_init_point : preference.init_point,
+      preference_id: preference.preferenceId,
+      is_free: false,
+    };
   }
 
-  async confirmPayment(token: string) {
-    if (!token) throw new BadRequestException('Token no proporcionado');
-    if (token === 'GRATIS') return { status: 'success' };
+  /**
+   * Confirma un pago de Mercado Pago usando el payment_id recibido en el back_url.
+   * También soporta ordenes pagadas 100% con puntos (external_reference = FREE-{id}).
+   */
+  async confirmPayment(paymentId: string, externalReference: string) {
+    // Caso pedido gratis (pagado con puntos)
+    if (externalReference.startsWith('FREE-')) {
+      const orderId = parseInt(externalReference.replace('FREE-', ''), 10);
+      return { status: 'success', orderId };
+    }
 
-    // Tipado seguro desde la consulta
+    if (!paymentId) throw new BadRequestException('payment_id no proporcionado');
+
+    // Verificar pago en Mercado Pago
+    const mpPayment = await this.mercadoPago.getPayment(paymentId);
+
+    // Buscar orden por external_reference
     const order = (await this.prisma.order.findFirst({
-      where: { sessionId: token },
+      where: { buyOrder: externalReference },
       include: {
         user: true,
         items: {
           include: { product: true, extras: { include: { extra: true } } },
         },
       },
-    })) as OrderWithDetails | null; // El casting es directo ahora
+    })) as OrderWithDetails | null;
 
-    if (!order) throw new NotFoundException('Token no reconocido');
+    if (!order) throw new NotFoundException('Orden no encontrada');
 
-    try {
-      const result = (await this.webpay.commit(token)) as WebpayCommitResponse;
+    if (mpPayment.status === 'approved') {
+      let pointsEarned = Math.floor(order.total / 100);
+      const hoy = new Date();
+      if (hoy.getDay() === 2) pointsEarned = Math.floor(pointsEarned * 1.5); // Martes
 
-      if (result.status === 'AUTHORIZED') {
-        let pointsEarned = Math.floor(order.total / 100);
-        const hoy = new Date();
-        if (hoy.getDay() === 2) pointsEarned = Math.floor(pointsEarned * 1.5); // Multiplicador día Martes
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 90);
 
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 90);
+      await this.prisma.$transaction([
+        this.prisma.order.update({
+          where: { id: order.id },
+          data: { status: 'PAGADO', pointsEarned },
+        }),
+        this.prisma.user.update({
+          where: { id: order.user.id },
+          data: { pointsBalance: { increment: pointsEarned } },
+        }),
+        this.prisma.pointTransaction.create({
+          data: {
+            userId: order.user.id,
+            orderId: order.id,
+            points: pointsEarned,
+            type: PointTransactionType.EARNED,
+            expiresAt,
+          },
+        }),
+      ]);
 
-        await this.prisma.$transaction([
-          this.prisma.order.update({
-            where: { id: order.id },
-            data: { status: 'PAGADO', pointsEarned },
-          }),
-          this.prisma.user.update({
+      return { status: 'success', orderId: order.id };
+    } else {
+      // Pago rechazado o pendiente: cancelar y devolver puntos si hubo
+      await this.prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { id: order.id },
+          data: { status: 'CANCELADO' },
+        });
+        if (order.pointsUsed > 0) {
+          await tx.user.update({
             where: { id: order.user.id },
-            data: { pointsBalance: { increment: pointsEarned } },
-          }),
-          this.prisma.pointTransaction.create({
+            data: { pointsBalance: { increment: order.pointsUsed } },
+          });
+          await tx.pointTransaction.create({
             data: {
               userId: order.user.id,
               orderId: order.id,
-              points: pointsEarned,
+              points: order.pointsUsed,
               type: PointTransactionType.EARNED,
-              expiresAt,
             },
-          }),
-        ]);
-
-        return { status: 'success', orderId: order.id };
-      } else {
-        // --- DEVOLUCIÓN DE PUNTOS POR RECHAZO DE TARJETA ---
-        await this.prisma.$transaction(async (tx) => {
-          await tx.order.update({
-            where: { id: order.id },
-            data: { status: 'CANCELADO' },
           });
-          if (order.pointsUsed > 0) {
-            await tx.user.update({
-              where: { id: order.user.id },
-              data: { pointsBalance: { increment: order.pointsUsed } },
-            });
-            await tx.pointTransaction.create({
-              data: {
-                userId: order.user.id,
-                orderId: order.id,
-                points: order.pointsUsed,
-                type: PointTransactionType.EARNED,
-              },
-            });
-          }
-        });
-        return { status: 'failed', orderId: order.id };
-      }
-    } catch (error) {
-      console.error(error);
-      throw new BadRequestException('Error en el pago');
+        }
+      });
+      return { status: 'failed', orderId: order.id };
     }
   }
 

@@ -58,8 +58,10 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       const response = await api.post('/auth/login', { email: email.trim(), password });
-      const { access_token: token, user } = response.data;
+      const { access_token: token, refresh_token: refreshToken, user } = response.data;
+      // Guardamos ambos tokens en la bóveda
       await SecureStore.setItemAsync('userToken', token);
+      await SecureStore.setItemAsync('refreshToken', refreshToken);
       await SecureStore.setItemAsync('userRole', user.role);
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       router.replace(user.role === 'ADMIN' ? '/(admin)/dashboard' : '/(client)');

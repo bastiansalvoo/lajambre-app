@@ -8,7 +8,7 @@ import "../global.css";
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { View, Text, Dimensions } from 'react-native';
-// 👇 1. Importamos la librería del Toast
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
 export { ErrorBoundary } from 'expo-router';
@@ -64,26 +64,23 @@ export default function RootLayout() {
   }
 
   return (
-    // 👇 3. Envolvemos la app en un fragmento <> para poder poner el Toast al mismo nivel
-    <>
+    <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="(client)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(admin)" options={{ headerShown: false }} />
-          <Stack.Screen name="webpay-result" options={{ title: 'Resultado del Pago' }} />
           <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
         </Stack>
       </QueryClientProvider>
       
-      {/* 👇 4. ¡EL TOAST MAESTRO! Ahora sí aparecerán las alertas por encima de la app */}
       <Toast 
         config={toastConfig} 
         position="bottom" 
         bottomOffset={Dimensions.get('window').height / 2 - 100}
         visibilityTime={3500}
       />
-    </>
+    </SafeAreaProvider>
   );
 }
