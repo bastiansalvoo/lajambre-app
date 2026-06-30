@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import MercadoPagoConfig, { Preference, Payment } from 'mercadopago';
+import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
 
 @Injectable()
 export class MercadoPagoService {
@@ -43,7 +43,6 @@ export class MercadoPagoService {
           failure: params.backUrls.failure,
           pending: params.backUrls.pending,
         },
-        auto_return: 'approved',
         external_reference: params.externalReference,
         statement_descriptor: 'La Jambre',
       },
