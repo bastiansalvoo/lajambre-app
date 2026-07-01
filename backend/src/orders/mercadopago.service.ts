@@ -20,7 +20,7 @@ export class MercadoPagoService {
   async createPreference(params: {
     orderId: number;
     items: { title: string; quantity: number; unit_price: number }[];
-    payer: { email: string };
+    payer: { email: string; name?: string; surname?: string; identification?: any };
     backUrls: { success: string; failure: string; pending: string };
     externalReference: string;
   }): Promise<{ init_point: string; sandbox_init_point: string; preferenceId: string }> {
@@ -35,9 +35,7 @@ export class MercadoPagoService {
           unit_price: item.unit_price,
           currency_id: 'CLP',
         })),
-        payer: {
-          email: params.payer.email,
-        },
+        payer: params.payer,
         back_urls: {
           success: params.backUrls.success,
           failure: params.backUrls.failure,

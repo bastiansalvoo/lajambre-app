@@ -273,13 +273,26 @@ export class OrdersService {
       unit_price: item.priceAtPurchase,
     }));
 
-    // Obtener email del usuario
+    // En modo sandbox usamos sandbox_init_point
+    const isSandbox = !this.configService.get<string>('MERCADOPAGO_ACCESS_TOKEN', '').startsWith('APP_USR-') ||
+      this.configService.get<string>('MERCADOPAGO_ENV', 'sandbox') === 'sandbox';
+
+    // Obtener email del usuario (usar uno falso en sandbox para evitar bloqueos de Mercado Pago)
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const payerEmail = isSandbox ? `test_user_${Date.now()}@test.com` : (user?.email || 'test@lajambre.cl');
 
     const preference = await this.mercadoPago.createPreference({
       orderId: order.id,
       items: mpItems,
-      payer: { email: user?.email || 'test@lajambre.cl' },
+      payer: { 
+        email: payerEmail,
+        name: user?.name || 'Comprador',
+        surname: 'De Prueba',
+        identification: {
+          type: 'RUT',
+          number: '11111111-1'
+        }
+      },
       backUrls: {
         success: feedbackUrl,
         failure: feedbackUrl,
@@ -294,12 +307,8 @@ export class OrdersService {
       data: { buyOrder: externalReference, sessionId: preference.preferenceId },
     });
 
-    // En modo sandbox usamos sandbox_init_point
-    const isSandbox = !this.configService.get<string>('MERCADOPAGO_ACCESS_TOKEN', '').startsWith('APP_USR-') ||
-      this.configService.get<string>('MERCADOPAGO_ENV', 'sandbox') === 'sandbox';
-
     return {
-      checkout_url: isSandbox ? preference.sandbox_init_point : preference.init_point,
+      checkout_url: preference.init_point,
       preference_id: preference.preferenceId,
       is_free: false,
     };
