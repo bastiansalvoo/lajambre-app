@@ -4,27 +4,24 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Instalar dependencias
-COPY package.json pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install
+COPY package.json package-lock.json ./
+RUN npm install
 
 # Copiar el resto del código y el schema de Prisma
 COPY . .
 
 # Generar cliente de Prisma y compilar NestJS
 RUN npx prisma generate
-RUN pnpm build
+RUN npm run build
 
 # Etapa 2: Producción (Imagen súper ligera)
 FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Instalar pnpm
-RUN npm install -g pnpm
-
 # Copiar package.json y dependencias de producción
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --prod
+COPY package.json package-lock.json ./
+RUN npm install --omit=dev
 
 # Copiar el cliente de Prisma generado
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
