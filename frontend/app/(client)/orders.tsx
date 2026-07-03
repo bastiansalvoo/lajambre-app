@@ -20,7 +20,7 @@ const STATUS_CONFIG: Record<string, { label: string; emoji: string; color: strin
 };
 
 // ─── Componente de una Orden ─────────────────────────────────────────────────
-function OrderCard({ order, onReorder }: { order: any; onReorder: (o: any) => void }) {
+function OrderCard({ order, onReorder, onCancel }: { order: any; onReorder: (o: any) => void; onCancel?: (o: any) => void }) {
   const [expanded, setExpanded] = useState(false);
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
@@ -183,29 +183,44 @@ function OrderCard({ order, onReorder }: { order: any; onReorder: (o: any) => vo
             </View>
           </View>
 
-          {/* Botón de acción */}
-          <TouchableOpacity
-            onPress={() => onReorder(order)}
-            activeOpacity={0.8}
-            className="mt-5 py-4 rounded-2xl flex-row justify-center items-center"
-            style={{
-              backgroundColor: isActionable ? 'rgba(239,68,68,0.08)' : 'rgba(234,179,8,0.08)',
-              borderWidth: 1,
-              borderColor: isActionable ? 'rgba(239,68,68,0.3)' : 'rgba(234,179,8,0.25)',
-            }}
-          >
-            <FontAwesome
-              name={isActionable ? 'refresh' : 'repeat'}
-              size={13}
-              color={isActionable ? '#EF4444' : '#EAB308'}
-            />
-            <Text
-              className="font-black uppercase text-[11px] ml-2.5 tracking-widest"
-              style={{ color: isActionable ? '#EF4444' : '#EAB308' }}
+          {/* Botones de acción */}
+          <View className="flex-row items-center justify-between mt-5 gap-x-3">
+            {order.status === 'PENDIENTE' && onCancel && (
+              <TouchableOpacity
+                onPress={() => onCancel(order)}
+                activeOpacity={0.8}
+                className="py-4 rounded-2xl flex-1 flex-row justify-center items-center bg-neutral-900 border border-white/10"
+              >
+                <FontAwesome name="times" size={13} color="#9CA3AF" />
+                <Text className="font-black uppercase text-[11px] ml-2.5 tracking-widest text-neutral-400">
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              onPress={() => onReorder(order)}
+              activeOpacity={0.8}
+              className="py-4 rounded-2xl flex-1 flex-row justify-center items-center"
+              style={{
+                backgroundColor: isActionable ? 'rgba(239,68,68,0.08)' : 'rgba(234,179,8,0.08)',
+                borderWidth: 1,
+                borderColor: isActionable ? 'rgba(239,68,68,0.3)' : 'rgba(234,179,8,0.25)',
+              }}
             >
-              {isActionable ? 'Reintentar Pago' : 'Volver a Pedir'}
-            </Text>
-          </TouchableOpacity>
+              <FontAwesome
+                name={isActionable ? 'refresh' : 'repeat'}
+                size={13}
+                color={isActionable ? '#EF4444' : '#EAB308'}
+              />
+              <Text
+                className="font-black uppercase text-[11px] ml-2.5 tracking-widest"
+                style={{ color: isActionable ? '#EF4444' : '#EAB308' }}
+              >
+                {isActionable ? 'Reintentar Pago' : 'Volver a Pedir'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </View>
@@ -354,13 +369,29 @@ export default function OrdersScreen() {
       if (error.response?.status === 401) {
         await clearSession();
         router.replace('/(auth)/login');
+      } else {
+        Toast.show({ type: 'error', text1: 'Error de conexión', text2: 'No se pudieron cargar tus pedidos. Verifica tu internet.' });
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleReorder = (order: any) => {
+  const handleReorder = async (order: any) => {
+    // Si el pedido está PENDIENTE: reintentar pago de la orden EXISTENTE (no crear una nueva)
+    if (order.status === 'PENDIENTE') {
+      try {
+        const payResponse = await api.post(`/orders/${order.id}/pay`);
+        const checkoutUrl = payResponse.data.checkout_url;
+        await WebBrowser.openBrowserAsync(checkoutUrl);
+        fetchOrders(); // Recargar estado al volver
+      } catch (error: any) {
+        const msg = error.response?.data?.message || 'No se pudo reintentar el pago.';
+        Toast.show({ type: 'error', text1: 'Error', text2: Array.isArray(msg) ? msg[0] : msg });
+      }
+      return;
+    }
+    // Si el pedido está CANCELADO: volver a pedir (crear orden nueva con los mismos items)
     clearCart();
     order.items.forEach((item: any) => {
       const product = { id: item.product.id, name: item.product.name, price: item.product.price, image: item.product.image };
@@ -368,6 +399,30 @@ export default function OrdersScreen() {
       for (let i = 0; i < item.quantity; i++) addItem(product, extras);
     });
     router.push('/(client)/cart');
+  };
+
+  const handleCancel = async (order: any) => {
+    Alert.alert(
+      '¿Cancelar Pedido?',
+      '¿Estás seguro que deseas cancelar este pedido? Si usaste puntos, se te devolverán.',
+      [
+        { text: 'No, mantener', style: 'cancel' },
+        { 
+          text: 'Sí, cancelar', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.patch(`/orders/${order.id}/cancel`);
+              Toast.show({ type: 'success', text1: 'Cancelado', text2: 'El pedido ha sido cancelado con éxito.' });
+              fetchOrders();
+            } catch (error: any) {
+              const msg = error.response?.data?.message || 'No se pudo cancelar el pedido.';
+              Toast.show({ type: 'error', text1: 'Error', text2: Array.isArray(msg) ? msg[0] : msg });
+            }
+          }
+        }
+      ]
+    );
   };
 
   // ── Loading ──────────────────────────────────────────────────────────────────
@@ -437,7 +492,7 @@ export default function OrdersScreen() {
               <Text className="text-green-400 font-black uppercase text-[10px] tracking-[3px]">En Progreso</Text>
             </View>
             {activeOrders.map(o => (
-              <OrderCard key={o.id} order={o} onReorder={handleReorder} />
+              <OrderCard key={o.id} order={o} onReorder={handleReorder} onCancel={handleCancel} />
             ))}
             <View className="h-2" />
           </>
@@ -451,7 +506,7 @@ export default function OrdersScreen() {
               <View className="flex-1 h-px bg-white/[0.04] ml-3" />
             </View>
             {pastOrders.map(o => (
-              <OrderCard key={o.id} order={o} onReorder={handleReorder} />
+              <OrderCard key={o.id} order={o} onReorder={handleReorder} onCancel={handleCancel} />
             ))}
           </>
         )}

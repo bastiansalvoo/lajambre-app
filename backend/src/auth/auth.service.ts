@@ -31,11 +31,19 @@ export class AuthService {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const newUser = await this.usersService.create(registerDto as any);
 
-    await this.mailService.sendVerificationEmail(
-      newUser.email,
-      newUser.verificationToken!, // <-- El '!' soluciona el error de "string | null"
-      newUser.name,
-    );
+    try {
+      await this.mailService.sendVerificationEmail(
+        newUser.email,
+        newUser.verificationToken!,
+        newUser.name,
+      );
+    } catch (error) {
+      // Si el correo falla (ej: mala contraseña SMTP), eliminamos al usuario
+      // para que no quede "atrapado" y pueda intentar registrarse de nuevo
+      await this.prisma.user.delete({ where: { id: newUser.id } });
+      console.error('Error enviando correo de registro:', error);
+      throw new BadRequestException('No se pudo enviar el correo de verificación. Intenta nuevamente más tarde.');
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, verificationToken, ...result } = newUser;

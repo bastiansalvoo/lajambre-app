@@ -3,34 +3,26 @@ import {
   IsString,
   MinLength,
   IsOptional,
-  IsEnum,
 } from 'class-validator';
-
-// Definimos los roles permitidos
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  USER = 'USER',
-}
 
 export class RegisterDto {
   @IsEmail({}, { message: 'El formato del correo electrónico no es válido' })
-  email!: string; // <-- Agrega el !
+  email!: string;
 
   @IsString()
   @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres' })
-  password!: string; // <-- Agrega el !
+  password!: string;
 
   @IsString()
-  name!: string; // <-- Agrega el !
+  name!: string;
 
   @IsString()
-  phone!: string; // <-- Agrega el !
+  phone!: string;
 
   @IsOptional()
   @IsString()
-  address?: string; // (Este no lo necesita porque tiene el ?)
+  address?: string;
 
-  @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
+  // NOTA: El rol NO se acepta por el DTO de registro.
+  // Los admins se crean directamente en la base de datos.
 }

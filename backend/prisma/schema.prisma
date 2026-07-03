@@ -50,6 +50,7 @@ model User {
 
   // --- SESIÓN ---
   refreshToken      String?   // Token para renovar JWT sin re-login
+  expoPushToken     String?   // Para notificaciones push
 
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -68,6 +69,7 @@ model Product {
   price       Int
   image       String?
   isAvailable Boolean     @default(true)
+  inStock     Boolean     @default(true)
   category    Category    @relation(fields: [categoryId], references: [id])
   categoryId  Int
   orderItems  OrderItem[]

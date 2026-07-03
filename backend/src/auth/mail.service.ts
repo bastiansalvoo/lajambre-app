@@ -28,12 +28,12 @@ export class MailService {
     const url = `http://${host}:${port}/auth/verify?token=${token}`;
 
     const mailOptions = {
-      from: this.configService.get<string>('SMTP_FROM', '"La Jambre App" <no-reply@lajambre.cl>'),
+      from: this.configService.get<string>('SMTP_FROM', '"Lajambre" <lajambre.contacto@gmail.com>'),
       to: userEmail,
-      subject: '🍔 Verifica tu cuenta en La Jambre',
+      subject: '🍔 Verifica tu cuenta en Lajambre',
       html: `
         <div style="font-family: Arial, sans-serif; background-color: #0a0a0a; color: #ffffff; padding: 40px; text-align: center;">
-          <h1 style="color: #EAB308; text-transform: uppercase;">¡Bienvenido a La Jambre, ${userName}!</h1>
+          <h1 style="color: #EAB308; text-transform: uppercase;">¡Bienvenido a Lajambre, ${userName}!</h1>
           <p style="font-size: 16px; color: #a3a3a3;">Ya casi estamos listos. Solo necesitamos confirmar que este correo es tuyo.</p>
           
           <a href="${url}" style="display: inline-block; background-color: #EAB308; color: #000000; padding: 15px 30px; margin: 20px 0; text-decoration: none; font-weight: bold; border-radius: 10px; text-transform: uppercase;">

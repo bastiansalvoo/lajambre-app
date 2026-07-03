@@ -10,7 +10,8 @@ import {
   UploadedFile,
   ParseIntPipe,
   BadRequestException,
-  UseGuards, // <-- Importamos UseGuards
+  UseGuards,
+  Query,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -19,10 +20,25 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 
-// 👇 Importamos nuestras llaves de seguridad
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+
+// Configuración compartida del fileFilter y límite de tamaño para imágenes
+const imageUploadOptions = {
+  fileFilter: (req: any, file: Express.Multer.File, callback: Function) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.webp'];
+    const ext = extname(file.originalname).toLowerCase();
+    if (!allowed.includes(ext)) {
+      return callback(
+        new BadRequestException('Solo se permiten imágenes .jpg, .png o .webp'),
+        false,
+      );
+    }
+    callback(null, true);
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // Máximo 5MB
+};
 
 @Controller('products')
 export class ProductsController {
@@ -30,8 +46,8 @@ export class ProductsController {
 
   // 1. Crear producto con imagen (🔒 SOLO ADMIN)
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard) // <-- Activa validación de Token y Roles
-  @Roles('ADMIN') // <-- Solo rol ADMIN pasa
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('ADMIN')
   @UseInterceptors(
     FileInterceptor('image', {
       storage: diskStorage({
@@ -39,10 +55,11 @@ export class ProductsController {
         filename: (req, file, callback) => {
           const uniqueSuffix =
             Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
+          const ext = extname(file.originalname).toLowerCase();
           callback(null, `product-${uniqueSuffix}${ext}`);
         },
       }),
+      ...imageUploadOptions,
     }),
   )
   create(
@@ -67,10 +84,11 @@ export class ProductsController {
         filename: (req, file, callback) => {
           const uniqueSuffix =
             Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
+          const ext = extname(file.originalname).toLowerCase();
           callback(null, `product-${uniqueSuffix}${ext}`);
         },
       }),
+      ...imageUploadOptions,
     }),
   )
   async uploadImage(
@@ -81,13 +99,14 @@ export class ProductsController {
     return this.productsService.updateImage(id, file.filename);
   }
 
-  // 3. Ver todos (🌍 PÚBLICO)
+  // 3. Ver todos (🌍 PÚBLICO o 🔒 ADMIN)
   @Get()
-  findAll() {
-    return this.productsService.findAll();
+  findAll(@Query('admin') isAdmin?: boolean) {
+    // Si viene ?admin=true, el servicio traerá todos (incluyendo los ocultos)
+    return this.productsService.findAll(isAdmin);
   }
 
-  // 🌍 PÚBLICO: Obtener extras
+  // 🌍 PÚBLICO: Obtener extras disponibles
   @Get('extras/all')
   findAllExtras() {
     return this.productsService.findAllExtras();

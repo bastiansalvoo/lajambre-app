@@ -204,8 +204,15 @@ export default function CartScreen() {
   if (finalTotal < 0) finalTotal = 0;
 
   const REWARD_OPTIONS = [
+    { id: 'QUESO_GRATIS', name: 'Queso Extra', points: 50, emoji: '🧀', desc: '50 pts' },
+    { id: 'TOCINO_GRATIS', name: 'Tocino Extra', points: 80, emoji: '🥓', desc: '80 pts' },
     { id: 'BEBIDA_GRATIS', name: 'Bebida Gratis', points: 150, emoji: '🥤', desc: '150 pts' },
     { id: 'DELIVERY_GRATIS', name: 'Delivery Gratis', points: 200, emoji: '🛵', desc: '200 pts' },
+    { id: 'PAPAS_GRATIS', name: 'Papas Rústicas', points: 250, emoji: '🍟', desc: '250 pts' },
+    { id: 'CARNE_EXTRA', name: 'Doble Carne', points: 350, emoji: '🥩', desc: '350 pts' },
+    { id: 'DOS_BEBIDAS', name: '2 Bebidas Gratis', points: 350, emoji: '🧊', desc: '350 pts' },
+    { id: 'UPGRADE_BURGER', name: 'Upgrade Premium', points: 450, emoji: '⭐', desc: '450 pts' },
+    { id: 'DOS_POR_UNO', name: 'Promo 2x1', points: 600, emoji: '🍔', desc: '600 pts' },
     { id: 'BURGER_GRATIS', name: 'Burger Gratis', points: 800, emoji: '🍔', desc: '800 pts' }
   ];
 
@@ -238,8 +245,8 @@ export default function CartScreen() {
       Toast.show({ type: 'error', text1: 'Error', text2: 'Por favor ingresa una dirección de entrega.' });
       return;
     }
-    if (!orderPhone) {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Necesitamos un teléfono de contacto.' });
+    if (!orderPhone || orderPhone.length < 9) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Por favor ingresa un teléfono válido (ej: +56945564917).' });
       return;
     }
 
@@ -259,12 +266,13 @@ export default function CartScreen() {
       const orderResponse = await api.post('/orders', orderPayload);
       const newOrderId = orderResponse.data.id;
       setShowModal(false);
-      clearCart();
+      // NO limpiamos el carrito aquí: esperamos a confirmar que el pago se inició
 
       const payResponse = await api.post(`/orders/${newOrderId}/pay`);
 
       // Pedido pagado 100% con puntos (sin pasar por pasarela)
       if (payResponse.data.is_free) {
+        clearCart();
         Alert.alert(
           '¡Pedido Gratis! 🎉',
           'Tu pedido fue pagado completamente con tus puntos de recompensa.',
@@ -275,6 +283,7 @@ export default function CartScreen() {
 
       // Abrir Checkout Pro de Mercado Pago en el navegador
       const checkoutUrl = payResponse.data.checkout_url;
+      clearCart(); // Limpiamos el carrito justo antes de abrir MP
       await WebBrowser.openBrowserAsync(checkoutUrl);
 
       // Al volver a la app, llevar al usuario a sus pedidos
@@ -426,57 +435,60 @@ export default function CartScreen() {
           {clubExpanded && (
             <View className="px-5 pb-6 pt-2 border-t border-white/5 z-10">
               <View style={{ gap: 12, marginTop: 8 }}>
-                {REWARD_OPTIONS.map((reward) => {
-                  const canAfford = userPoints >= reward.points;
-                  const isSelected = selectedReward === reward.id;
+                {REWARD_OPTIONS.filter(r => r.points <= userPoints).length > 0 ? (
+                  REWARD_OPTIONS.filter(r => r.points <= userPoints).map((reward) => {
+                    const isSelected = selectedReward === reward.id;
 
-                  return (
-                    <TouchableOpacity
-                      key={reward.id}
-                      onPress={() => handleRewardSelection(reward.id, reward.points)}
-                      activeOpacity={0.8}
-                      className="flex-row items-center p-4 rounded-2xl"
-                      style={{ 
-                        backgroundColor: isSelected ? 'rgba(234,179,8,0.1)' : '#0A0A0A',
-                        borderWidth: 1,
-                        borderColor: isSelected ? '#EAB308' : (canAfford ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.02)')
-                      }}
-                    >
-                      {/* Círculo del Emoji */}
-                      <View 
-                        className="w-12 h-12 rounded-full items-center justify-center mr-4"
-                        style={{ backgroundColor: canAfford ? 'rgba(255,255,255,0.03)' : 'transparent' }}
+                    return (
+                      <TouchableOpacity
+                        key={reward.id}
+                        onPress={() => handleRewardSelection(reward.id, reward.points)}
+                        activeOpacity={0.8}
+                        className="flex-row items-center p-4 rounded-2xl"
+                        style={{ 
+                          backgroundColor: isSelected ? 'rgba(234,179,8,0.1)' : '#0A0A0A',
+                          borderWidth: 1,
+                          borderColor: isSelected ? '#EAB308' : 'rgba(255,255,255,0.08)'
+                        }}
                       >
-                        <Text className="text-[24px]">{reward.emoji}</Text>
-                        {!canAfford && (
-                          <View className="absolute -bottom-1 -right-1 bg-black rounded-full p-1.5 border border-neutral-800">
-                            <FontAwesome name="lock" size={10} color="#525252" />
-                          </View>
-                        )}
-                      </View>
+                        {/* Círculo del Emoji */}
+                        <View 
+                          className="w-12 h-12 rounded-full items-center justify-center mr-4"
+                          style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
+                        >
+                          <Text className="text-[24px]">{reward.emoji}</Text>
+                        </View>
 
-                      {/* Info principal */}
-                      <View className="flex-1 border-r border-dashed border-white/10 pr-4 mr-4">
-                        <Text className={`font-black uppercase tracking-wider text-[13px] ${isSelected ? 'text-yellow-500' : (canAfford ? 'text-white' : 'text-neutral-500')}`}>
-                          {reward.name}
-                        </Text>
-                        <Text className={`text-[9px] font-bold uppercase tracking-widest mt-1 ${isSelected ? 'text-yellow-500/80' : 'text-neutral-500'}`}>
-                          {isSelected ? '💎 RECOMPENSA ACTIVA' : (canAfford ? '✨ DESBLOQUEADO' : `Faltan ${reward.points - userPoints} pts`)}
-                        </Text>
-                      </View>
+                        {/* Info principal */}
+                        <View className="flex-1 border-r border-dashed border-white/10 pr-4 mr-4">
+                          <Text className={`font-black uppercase tracking-wider text-[13px] ${isSelected ? 'text-yellow-500' : 'text-white'}`}>
+                            {reward.name}
+                          </Text>
+                          <Text className={`text-[9px] font-bold uppercase tracking-widest mt-1 ${isSelected ? 'text-yellow-500/80' : 'text-neutral-500'}`}>
+                            {isSelected ? '💎 RECOMPENSA ACTIVA' : '✨ DESBLOQUEADO'}
+                          </Text>
+                        </View>
 
-                      {/* Puntos (Ticket Stub) */}
-                      <View className="items-center justify-center min-w-[45px]">
-                        <Text className={`font-black text-[16px] ${isSelected ? 'text-yellow-500' : (canAfford ? 'text-white' : 'text-neutral-600')}`}>
-                          {reward.points}
-                        </Text>
-                        <Text className={`font-black text-[9px] uppercase tracking-widest mt-0.5 ${isSelected ? 'text-yellow-500/70' : 'text-neutral-600'}`}>
-                          Pts
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+                        {/* Puntos (Ticket Stub) */}
+                        <View className="items-center justify-center min-w-[45px]">
+                          <Text className={`font-black text-[16px] ${isSelected ? 'text-yellow-500' : 'text-white'}`}>
+                            {reward.points}
+                          </Text>
+                          <Text className={`font-black text-[9px] uppercase tracking-widest mt-0.5 ${isSelected ? 'text-yellow-500/70' : 'text-neutral-600'}`}>
+                            Pts
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })
+                ) : (
+                  <View className="items-center py-6 px-4">
+                    <Text className="text-neutral-500 font-bold uppercase text-[11px] tracking-widest text-center leading-5">
+                      Aún no te alcanzan los puntos para canjear premios.{'\n'}
+                      <Text className="text-yellow-500">¡Sigue comprando para ganar más!</Text>
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
           )}
@@ -553,16 +565,29 @@ export default function CartScreen() {
       >
         <TouchableOpacity
           onPress={handleOpenCheckout}
-          className="bg-yellow-500 rounded-[20px] py-4 flex-row justify-between items-center px-6 active:bg-yellow-600"
-          style={{ shadowColor: '#EAB308', shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 }}
+          activeOpacity={0.85}
+          style={{
+            borderRadius: 20,
+            overflow: 'hidden',
+            shadowColor: '#EAB308',
+            shadowOpacity: 0.6,
+            shadowRadius: 25,
+            elevation: 15,
+          }}
         >
-          <View>
-            <Text className="text-black font-black uppercase tracking-widest text-[16px]">Ir a Pagar</Text>
-            <Text className="text-black/60 text-[10px] font-black uppercase tracking-widest">
-              {items.reduce((t, i) => t + i.quantity, 0)} producto{items.reduce((t, i) => t + i.quantity, 0) !== 1 ? 's' : ''}
-            </Text>
-          </View>
-          <Text className="text-black font-black text-[20px] tracking-tighter">${finalTotal.toLocaleString('es-CL')}</Text>
+          <LinearGradient
+            colors={['#FDE047', '#EAB308', '#CA8A04']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 24 }}
+          >
+            <View>
+              <Text className="text-black font-black uppercase tracking-widest text-[16px]">Ir a Pagar</Text>
+              <Text className="text-black/60 text-[10px] font-black uppercase tracking-widest mt-0.5">
+                {items.reduce((t, i) => t + i.quantity, 0)} producto{items.reduce((t, i) => t + i.quantity, 0) !== 1 ? 's' : ''}
+              </Text>
+            </View>
+            <Text className="text-black font-black text-[20px] tracking-tighter">${finalTotal.toLocaleString('es-CL')}</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
 
@@ -596,7 +621,8 @@ export default function CartScreen() {
                 value={orderPhone}
                 onChangeText={setOrderPhone}
                 keyboardType="phone-pad"
-                placeholder="+56 9 ..."
+                placeholder="+569..."
+                maxLength={12} // <- Limitamos a 12 caracteres (ej: +56945564917)
                 placeholderTextColor="#525252"
                 className="bg-[#000] border border-white/5 text-white p-4 rounded-2xl font-bold"
               />

@@ -27,7 +27,7 @@ export default function MenuManagerScreen() {
   const { data: products, isLoading: loadingProducts } = useQuery({
     queryKey: ['admin-products'],
     queryFn: async () => {
-      const response = await api.get('/products');
+      const response = await api.get('/products?admin=true');
       return response.data;
     },
   });
@@ -132,11 +132,16 @@ export default function MenuManagerScreen() {
       await api.patch(`/products/${product.id}`, { isAvailable: !product.isAvailable });
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
     } catch (error) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'No se pudo cambiar el estado del producto.'
-      });
+      Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo cambiar el estado' });
+    }
+  };
+
+  const toggleStock = async (product: any) => {
+    try {
+      await api.patch(`/products/${product.id}`, { inStock: !product.inStock });
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo cambiar el stock' });
     }
   };
 
@@ -207,7 +212,7 @@ export default function MenuManagerScreen() {
                 </View>
 
                 {/* Acciones */}
-                <View className="items-center justify-center gap-y-3 ml-2">
+                <View className="items-center justify-center gap-y-3 ml-2 flex-row gap-x-2">
                   <TouchableOpacity
                     onPress={() => openEditModal(item)}
                     className="w-10 h-10 rounded-xl items-center justify-center border border-white/5"
@@ -215,18 +220,34 @@ export default function MenuManagerScreen() {
                   >
                     <FontAwesome name="pencil" size={16} color="#EAB308" />
                   </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    onPress={() => toggleStock(item)}
+                    className="w-10 h-10 rounded-xl items-center justify-center border"
+                    style={{ 
+                      backgroundColor: item.inStock ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                      borderColor: item.inStock ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'
+                    }}
+                  >
+                    <FontAwesome
+                      name="shopping-cart"
+                      size={16}
+                      color={item.inStock ? '#22C55E' : '#EF4444'}
+                    />
+                  </TouchableOpacity>
+
                   <TouchableOpacity
                     onPress={() => toggleAvailability(item)}
                     className="w-10 h-10 rounded-xl items-center justify-center border"
                     style={{ 
-                      backgroundColor: item.isAvailable ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                      borderColor: item.isAvailable ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'
+                      backgroundColor: item.isAvailable ? 'rgba(34, 197, 94, 0.1)' : 'rgba(115, 115, 115, 0.1)',
+                      borderColor: item.isAvailable ? 'rgba(34, 197, 94, 0.2)' : 'rgba(115, 115, 115, 0.2)'
                     }}
                   >
                     <FontAwesome
                       name={item.isAvailable ? 'eye' : 'eye-slash'}
                       size={16}
-                      color={item.isAvailable ? '#22C55E' : '#EF4444'}
+                      color={item.isAvailable ? '#22C55E' : '#737373'}
                     />
                   </TouchableOpacity>
                 </View>
@@ -279,7 +300,7 @@ export default function MenuManagerScreen() {
                 onChangeText={setNewName} 
                 className="text-white p-5 rounded-2xl mb-5 font-bold text-[15px] border focus:border-yellow-500/50" 
                 style={{ backgroundColor: '#111', borderColor: 'rgba(255,255,255,0.05)' }}
-                placeholder="Ej: La Jambre Especial" 
+                placeholder="Ej: Lajambre Especial" 
                 placeholderTextColor="#555" 
               />
 

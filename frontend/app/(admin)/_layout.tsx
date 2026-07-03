@@ -19,7 +19,7 @@ export default function AdminLayout() {
           Toast.show({
             type: 'error',
             text1: 'Acceso Restringido',
-            text2: 'Esta área es exclusiva para el personal de La Jambre.',
+            text2: 'Esta área es exclusiva para el personal de Lajambre.',
           });
           router.replace('/(client)');
         } else {

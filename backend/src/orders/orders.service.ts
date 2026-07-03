@@ -2,7 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  //ForbiddenException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
@@ -63,12 +63,9 @@ export class OrdersService {
   }
 
   async create(createOrderDto: CreateOrderDto, userId: number) {
-    // COMENTAMOS ESTO TEMPORALMENTE PARA PODER COMPRAR DE DÍA
-    /*
     if (!this.isStoreOpen()) {
-      throw new ForbiddenException('Lajambre cerrado. Horario: Mar-Dom 18:30 a 00:00.');
+      throw new ForbiddenException('Lajambre está cerrado. Horario: Martes a Domingo de 18:30 a 00:00.');
     }
-    */
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({ where: { id: userId } });
@@ -137,12 +134,23 @@ export class OrdersService {
           userId,
           total: 0,
           deliveryFee,
-          deliveryAddress: createOrderDto.deliveryAddress, // <--- GUARDADO
-          contactPhone: createOrderDto.contactPhone, // <--- GUARDADO
+          deliveryAddress: createOrderDto.deliveryAddress,
+          contactPhone: createOrderDto.contactPhone,
           rewardType: createOrderDto.rewardType,
           pointsUsed: pointsToUse,
         },
       });
+
+      // GUARDADO AUTOMÁTICO DE LA DIRECCIÓN PARA EL FUTURO
+      if (createOrderDto.deliveryAddress || createOrderDto.contactPhone) {
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            ...(createOrderDto.deliveryAddress && { address: createOrderDto.deliveryAddress }),
+            ...(createOrderDto.contactPhone && { phone: createOrderDto.contactPhone })
+          }
+        });
+      }
 
       let subTotalItems = 0;
       let hasBurger = false;
@@ -279,25 +287,26 @@ export class OrdersService {
 
     // Obtener email del usuario (usar uno falso en sandbox para evitar bloqueos de Mercado Pago)
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    const payerEmail = isSandbox ? `test_user_${Date.now()}@test.com` : (user?.email || 'test@lajambre.cl');
+    const payerEmail = isSandbox ? `test_user_${Date.now()}@testuser.com` : (user?.email || 'cliente@lajambre.cl');
 
     const preference = await this.mercadoPago.createPreference({
       orderId: order.id,
       items: mpItems,
       payer: { 
-        email: payerEmail,
-        name: user?.name || 'Comprador',
-        surname: 'De Prueba',
-        identification: {
-          type: 'RUT',
-          number: '11111111-1'
-        }
+        name: user?.name || 'Cliente',
+        email: isSandbox ? undefined : payerEmail, // En sandbox omitimos para evitar error de sesión
       },
       backUrls: {
         success: feedbackUrl,
         failure: feedbackUrl,
         pending: feedbackUrl,
       },
+      // Mercado Pago exige que el notificationUrl sea un dominio o IP pública válida.
+      // Si estamos probando en red local (192.168...), enviamos un dominio falso válido
+      // para saltarnos su validación estricta (el webhook real funcionará en prod).
+      notificationUrl: baseUrl.includes('192.168') || baseUrl.includes('localhost') 
+        ? 'https://api.lajambre.cl/orders/mercadopago/webhook' 
+        : `${baseUrl}/orders/mercadopago/webhook`,
       externalReference,
     });
 
@@ -306,6 +315,11 @@ export class OrdersService {
       where: { id: order.id },
       data: { buyOrder: externalReference, sessionId: preference.preferenceId },
     });
+
+    console.log('\n=============================================');
+    console.log('🔗 URL DE PAGO (Cópiala en tu PC en Incógnito):');
+    console.log(preference.init_point);
+    console.log('=============================================\n');
 
     return {
       checkout_url: preference.init_point,
@@ -451,7 +465,42 @@ export class OrdersService {
   }
 
   async updateStatus(id: number, status: OrderStatus) {
-    return this.prisma.order.update({ where: { id }, data: { status } });
+    const updatedOrder = await this.prisma.order.update({
+      where: { id },
+      data: { status },
+      include: { user: true },
+    });
+
+    // Enviar notificación Push al cliente si tiene token
+    if (updatedOrder.user?.expoPushToken) {
+      let message = '';
+      if (status === 'PREPARANDO') message = '👨‍🍳 ¡Tu pedido se está preparando en la cocina!';
+      if (status === 'EN_CAMINO') message = '🛵 ¡Tu pedido ya va en camino hacia tu dirección!';
+      if (status === 'ENTREGADO') message = '🎉 ¡Tu pedido ha sido entregado! Que lo disfrutes.';
+
+      if (message) {
+        try {
+          await globalThis.fetch('https://exp.host/--/api/v2/push/send', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Accept-encoding': 'gzip, deflate',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              to: updatedOrder.user.expoPushToken,
+              title: 'Lajambre 🍔',
+              body: message,
+              sound: 'default',
+            }),
+          });
+        } catch (e) {
+          console.error('Error enviando notificación Push:', e);
+        }
+      }
+    }
+
+    return updatedOrder;
   }
 
   async cancelOrder(id: number, userId: number) {

@@ -8,6 +8,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../../src/api/api';
+import { Audio } from 'expo-av';
 
 const TABLEROS = ['PAGADO', 'PREPARANDO', 'EN_CAMINO', 'ENTREGADO'];
 
@@ -27,6 +28,7 @@ export default function LiveOrdersScreen() {
   const [filtroActual, setFiltroActual] = useState('PAGADO');
 
   const pulseValue = useRef(new Animated.Value(1)).current;
+  const lastMaxIdRef = useRef<number>(0);
 
   useEffect(() => {
     Animated.loop(
@@ -51,7 +53,31 @@ export default function LiveOrdersScreen() {
     try {
       const response = await api.get('/orders/admin/all?limit=200');
       const ordersData = response.data?.data || response.data;
-      setOrders(Array.isArray(ordersData) ? ordersData : []);
+      const parsedOrders = Array.isArray(ordersData) ? ordersData : [];
+      setOrders(parsedOrders);
+
+      // ── DETECCIÓN DE NUEVOS PEDIDOS PAGADOS ──
+      const paidOrders = parsedOrders.filter((o: any) => o.status === 'PAGADO');
+      const currentMaxId = paidOrders.reduce((max: number, o: any) => Math.max(max, o.id), 0);
+
+      // Si teníamos un id registrado, y el nuevo es mayor, es porque entró un pedido nuevo
+      if (lastMaxIdRef.current > 0 && currentMaxId > lastMaxIdRef.current) {
+        try {
+          const { sound } = await Audio.Sound.createAsync(
+            require('../../assets/sounds/bell.ogg')
+          );
+          await sound.playAsync();
+          Toast.show({ type: 'success', text1: '¡NUEVO PEDIDO!', text2: 'Ha llegado un nuevo pedido pagado.' });
+        } catch (e) {
+          console.log('Error reproduciendo sonido:', e);
+        }
+      }
+      
+      // Actualizamos el último id conocido (incluso en la primera carga donde lastMaxIdRef es 0)
+      if (currentMaxId > lastMaxIdRef.current) {
+        lastMaxIdRef.current = currentMaxId;
+      }
+
     } catch (error) {
       console.error('Error cargando pedidos:', error);
     } finally {
@@ -64,7 +90,8 @@ export default function LiveOrdersScreen() {
     useCallback(() => {
       setIsLoading(true);
       fetchAdminOrders();
-      const interval = setInterval(fetchAdminOrders, 30000);
+      // Consultar cada 15 segundos
+      const interval = setInterval(fetchAdminOrders, 15000);
       return () => clearInterval(interval);
     }, []),
   );

@@ -17,11 +17,16 @@ const { width: W } = Dimensions.get('window');
 // Mapeo de nombres de premios a íconos FontAwesome (aproximación)
 const getRewardIcon = (name: string) => {
   const n = name.toLowerCase();
-  if (n.includes('bebida') || n.includes('jugo') || n.includes('soda')) return 'glass';
-  if (n.includes('delivery') || n.includes('envío')) return 'motorcycle';
-  if (n.includes('burger') || n.includes('hamburguesa')) return 'cutlery'; // No hay burger en FA clásico
-  if (n.includes('papas') || n.includes('fries')) return 'archive'; // Cajita de papas?
-  return 'star';
+  if (n.includes('queso')) return { name: 'certificate', color: '#FACC15' };
+  if (n.includes('tocino')) return { name: 'fire', color: '#EF4444' };
+  if (n.includes('bebida')) return { name: 'glass', color: '#60A5FA' };
+  if (n.includes('delivery') || n.includes('envío')) return { name: 'motorcycle', color: '#34D399' };
+  if (n.includes('papas') || n.includes('fries')) return { name: 'archive', color: '#F59E0B' };
+  if (n.includes('carne')) return { name: 'plus-circle', color: '#DC2626' };
+  if (n.includes('premium') || n.includes('upgrade')) return { name: 'star', color: '#EAB308' };
+  if (n.includes('promo') || n.includes('2x1')) return { name: 'copy', color: '#A855F7' };
+  if (n.includes('burger') || n.includes('hamburguesa')) return { name: 'cutlery', color: '#F97316' };
+  return { name: 'gift', color: '#EC4899' };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -283,17 +288,17 @@ export default function ProfileScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
             {rewardsData?.recompensas?.map((premio: any, idx: number) => {
               const unlocked = premio.alcanzado;
-              const iconName = getRewardIcon(premio.nombre);
+              const iconData = getRewardIcon(premio.nombre);
               
               return (
                 <View key={premio.id} style={{
                   width: 130, marginRight: 16, borderRadius: 20, overflow: 'hidden',
                   backgroundColor: unlocked ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.3)',
-                  borderWidth: 1, borderColor: unlocked ? tierColor + '40' : 'rgba(255,255,255,0.03)',
+                  borderWidth: 1, borderColor: unlocked ? iconData.color + '40' : 'rgba(255,255,255,0.03)',
                 }}>
                   {unlocked && (
                     <LinearGradient
-                      colors={[tierColor + '15', 'transparent']}
+                      colors={[iconData.color + '15', 'transparent']}
                       start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
                       style={{ position: 'absolute', width: '100%', height: '100%' }}
                     />
@@ -302,13 +307,13 @@ export default function ProfileScreen() {
                   <View style={{ padding: 16, alignItems: 'center' }}>
                     <View style={{
                       width: 48, height: 48, borderRadius: 24, marginBottom: 12,
-                      backgroundColor: unlocked ? tierColor + '20' : 'rgba(255,255,255,0.02)',
+                      backgroundColor: unlocked ? iconData.color + '20' : iconData.color + '08',
                       alignItems: 'center', justifyContent: 'center',
                     }}>
                       <FontAwesome
-                        name={unlocked ? iconName : 'lock'}
+                        name={iconData.name as any}
                         size={20}
-                        color={unlocked ? tierColor : '#444'}
+                        color={unlocked ? iconData.color : iconData.color + '80'}
                       />
                     </View>
 

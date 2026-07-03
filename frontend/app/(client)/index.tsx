@@ -272,13 +272,26 @@ export default function MenuScreen() {
                           entering={FadeInDown.delay(index * 100).springify()}
                           layout={LinearTransition.springify()}
                         >
-                          <TouchableOpacity activeOpacity={0.9} onPress={() => openExtrasModal(product)}>
-                            <View className="relative rounded-2xl border border-yellow-500/30 overflow-hidden" style={{ shadowColor: '#EAB308', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8, backgroundColor: '#000' }}>
+                          <TouchableOpacity 
+                            activeOpacity={0.9} 
+                            onPress={() => openExtrasModal(product)}
+                            disabled={!product.inStock}
+                          >
+                            <View className="relative rounded-2xl border overflow-hidden" style={{ borderColor: product.inStock ? 'rgba(234,179,8,0.3)' : 'rgba(255,255,255,0.1)', shadowColor: product.inStock ? '#EAB308' : '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8, backgroundColor: '#000' }}>
                               <Image 
                                 source={product.image ? { uri: product.image.startsWith('/') ? API_BASE_URL + product.image : product.image } : require('../../assets/images/menu/bbq.jpg')} 
                                 className="w-full h-44 bg-neutral-900"
                                 resizeMode="cover"
+                                style={{ opacity: product.inStock ? 1 : 0.4 }}
                               />
+
+                              {!product.inStock && (
+                                <View className="absolute inset-0 bg-black/50 justify-center items-center z-30">
+                                  <View className="bg-red-600 px-3 py-1.5 rounded-full border border-red-400/50" style={{ transform: [{ rotate: '-10deg' }] }}>
+                                    <Text className="text-white font-black uppercase text-[12px] tracking-widest shadow-black shadow-sm">Agotado</Text>
+                                  </View>
+                                </View>
+                              )}
                               
                               {/* Efecto de Brillo Cruzado (Shimmer) */}
                               <Animated.View 

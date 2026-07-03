@@ -99,7 +99,7 @@ export default function RegisterScreen() {
                 />
               </View>
               <Text className="text-white mt-2 font-bold uppercase text-[11px]">
-                Y empezá a acumular puntos
+                Y empieza a acumular puntos
               </Text>
             </View>
 
@@ -203,7 +203,7 @@ export default function RegisterScreen() {
             {/* Footer */}
             <TouchableOpacity onPress={() => router.replace('/(auth)/login')} className="mt-8 items-center py-3">
               <Text className="text-white font-bold uppercase text-[11px]">
-                ¿Ya tenés cuenta?{' '}
+                ¿Ya tienes cuenta?{' '}
                 <Text className="text-yellow-500">Iniciar Sesión</Text>
               </Text>
             </TouchableOpacity>

@@ -13,6 +13,7 @@ import {
   Patch,
   Res,
   Header,
+  HttpCode,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -28,7 +29,9 @@ interface RequestWithUser extends ExpressRequest {
 }
 
 // Deep link para devolver al usuario a la app tras el pago
-const APP_DEEP_LINK = 'exp://192.168.0.15:8081/--/(client)/orders';
+// En desarrollo: exp://192.168.0.15:8081/--/(client)/orders
+// En producción: configurar APP_DEEP_LINK en .env.production con el scheme de la app
+const APP_DEEP_LINK = process.env.APP_DEEP_LINK ?? 'exp://192.168.0.21:8081/--/(client)/orders';
 
 @Controller('orders')
 @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
@@ -48,6 +51,15 @@ export class OrdersController {
     @Request() req: RequestWithUser,
   ) {
     return this.ordersService.startPayment(id, req.user.userId);
+  }
+
+  @Patch(':id/cancel')
+  @UseGuards(AuthGuard('jwt'))
+  async cancelOrder(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.ordersService.cancelOrder(id, req.user.userId);
   }
 
   /**
@@ -78,7 +90,7 @@ export class OrdersController {
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>¡Pedido Confirmado! - La Jambre</title>
+            <title>¡Pedido Confirmado! - Lajambre</title>
             <style>
               * { margin: 0; padding: 0; box-sizing: border-box; }
               body { font-family: 'Arial', sans-serif; background-color: #0a0a0a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
@@ -109,7 +121,7 @@ export class OrdersController {
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Pago Pendiente - La Jambre</title>
+            <title>Pago Pendiente - Lajambre</title>
             <style>
               * { margin: 0; padding: 0; box-sizing: border-box; }
               body { font-family: 'Arial', sans-serif; background-color: #0a0a0a; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
@@ -138,7 +150,7 @@ export class OrdersController {
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Pago Rechazado - La Jambre</title>
+            <title>Pago Rechazado - Lajambre</title>
             <style>
               * { margin: 0; padding: 0; box-sizing: border-box; }
               body { font-family: 'Arial', sans-serif; background-color: #0a0a0a; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
@@ -174,6 +186,37 @@ export class OrdersController {
     }
 
     res?.send(htmlContent);
+  }
+
+  /**
+   * Webhook IPN de Mercado Pago.
+   * Recibe notificaciones asíncronas en segundo plano cuando un pago se procesa o actualiza.
+   * Esto asegura que aunque el cliente cierre el navegador, la orden se confirme.
+   */
+  @Post('mercadopago/webhook')
+  @HttpCode(200)
+  async mercadoPagoWebhook(@Query() query: any, @Body() body: any) {
+    const topic = query.topic || body.type;
+    // Identificador del pago
+    const paymentId = query.id || body.data?.id;
+
+    if ((topic === 'payment' || topic === 'payment.created' || topic === 'payment.updated') && paymentId) {
+      try {
+        // Obtenemos los detalles del pago de Mercado Pago
+        const payment = await this.ordersService['mercadoPago'].getPayment(paymentId);
+        
+        // Si el pago fue aprobado, lo confirmamos
+        if (payment.status === 'approved' && payment.external_reference) {
+          // confirmPayment ya valida si la orden existe y si no estaba pagada
+          await this.ordersService.confirmPayment(paymentId, payment.external_reference);
+        }
+      } catch (error) {
+        console.error('Error procesando Webhook de MP:', error);
+      }
+    }
+    
+    // MP exige un código HTTP 200 rápido para no reenviar notificaciones
+    return 'OK';
   }
 
   @Get('admin/all')

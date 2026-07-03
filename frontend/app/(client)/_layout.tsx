@@ -4,6 +4,7 @@ import { View, Text, Image, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { useCartStore } from '../../src/store/cartStore';
+import { usePushNotifications } from '../../src/hooks/usePushNotifications';
 
 function LogoHeader() {
   const router = useRouter();
@@ -55,6 +56,9 @@ function TabLayoutContent() {
   const totalItems = useCartStore((state) => 
     state.items.reduce((sum, item) => sum + item.quantity, 0)
   );
+
+  // Iniciar notificaciones push (solicita permisos y envía al servidor)
+  usePushNotifications();
 
   return (
     <Tabs
