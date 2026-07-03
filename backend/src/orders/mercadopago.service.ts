@@ -1,0 +1,79 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
+
+@Injectable()
+export class MercadoPagoService {
+  private client: MercadoPagoConfig;
+  private readonly logger = new Logger(MercadoPagoService.name);
+
+  constructor(private configService: ConfigService) {
+    const accessToken = this.configService.get<string>('MERCADOPAGO_ACCESS_TOKEN');
+    this.client = new MercadoPagoConfig({
+      accessToken: accessToken || '',
+    });
+  }
+
+  /**
+   * Crea una preferencia de pago (Checkout Pro) en Mercado Pago.
+   * Devuelve init_point (producción) o sandbox_init_point (pruebas).
+   */
+  async createPreference(params: {
+    orderId: number;
+    items: { title: string; quantity: number; unit_price: number }[];
+    payer?: { email?: string; name?: string; surname?: string; identification?: any };
+    backUrls: { success: string; failure: string; pending: string };
+    notificationUrl: string;
+    externalReference: string;
+  }): Promise<{ init_point: string; sandbox_init_point: string; preferenceId: string }> {
+    const preference = new Preference(this.client);
+
+    try {
+      const response = await preference.create({
+        body: {
+          items: params.items.map((item) => ({
+            id: String(params.orderId),
+            title: item.title,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            currency_id: 'CLP',
+          })),
+          // El correo del pagador ya es sobreescrito en orders.service.ts
+          // con un correo falso ("test_user_... @test.com") para evitar el error de sesión.
+          ...(params.payer ? { payer: params.payer } : {}),
+          back_urls: {
+            success: params.backUrls.success,
+            failure: params.backUrls.failure,
+            pending: params.backUrls.pending,
+          },
+          notification_url: params.notificationUrl,
+          external_reference: params.externalReference,
+          statement_descriptor: 'Lajambre',
+        },
+      });
+
+      return {
+        init_point: response.init_point || '',
+        sandbox_init_point: response.sandbox_init_point || '',
+        preferenceId: response.id || '',
+      };
+    } catch (error) {
+      this.logger.error('Error al crear preferencia en Mercado Pago:');
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene los detalles de un pago específico por su ID.
+   * Usado para verificar el estado al recibir la notificación de retorno.
+   */
+  async getPayment(paymentId: string): Promise<{ status: string; external_reference: string }> {
+    const payment = new Payment(this.client);
+    const result = await payment.get({ id: paymentId });
+    return {
+      status: result.status || 'unknown',
+      external_reference: result.external_reference || '',
+    };
+  }
+}

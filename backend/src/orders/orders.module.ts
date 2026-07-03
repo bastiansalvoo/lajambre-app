@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
-import { PrismaService } from '../prisma.service'; // <-- Importar
-import { WebpayService } from './webpay.service';
+import { PrismaService } from '../prisma.service';
+import { MercadoPagoService } from './mercadopago.service';
 
 @Module({
   controllers: [OrdersController],
-  providers: [OrdersService, WebpayService, PrismaService], // <-- Proveer el servicio de DB
+  providers: [OrdersService, MercadoPagoService, PrismaService],
 })
 export class OrdersModule {}

@@ -1,10 +1,14 @@
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Dimensions, ActivityIndicator, Modal } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Dimensions, ActivityIndicator, Modal, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import Animated, {
+  FadeInDown, LinearTransition,
+  useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withSpring,
+  interpolate, Extrapolation,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query'; 
-import { api } from '../../src/api/api'; 
-import { useCartStore, ExtraItem } from '../../src/store/cartStore'; 
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api, API_BASE_URL } from '../../src/api/api';
+import { useCartStore, ExtraItem } from '../../src/store/cartStore';
 import { FontAwesome } from '@expo/vector-icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -31,6 +35,53 @@ export default function MenuScreen() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const addItem = useCartStore((state) => state.addItem);
+
+  // ── ANIMACIONES ──
+  const scrollY = useSharedValue(0);
+  const pulseAnim = useSharedValue(1);
+  const shimmerAnim = useSharedValue(0);
+
+  // Parallax del banner al scrollear
+  const bannerParallax = useAnimatedStyle(() => ({
+    transform: [{ translateY: interpolate(scrollY.value, [0, 300], [0, 90], Extrapolation.CLAMP) }],
+  }));
+
+  // Animaciones cíclicas (Latido y Brillo)
+  useEffect(() => {
+    pulseAnim.value = withRepeat(
+      withSequence(
+        withTiming(1.08, { duration: 1200 }),
+        withTiming(1, { duration: 1200 }),
+      ),
+      -1,
+      true,
+    );
+
+    shimmerAnim.value = withRepeat(
+      withSequence(
+        withTiming(0, { duration: 3000 }), // Espera 3 segundos
+        withTiming(1, { duration: 1200 }), // Cruza rápido en 1.2s
+        withTiming(0, { duration: 0 })     // Reinicia sin transición
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: '25deg' },
+      { translateX: interpolate(shimmerAnim.value, [0, 1], [-150, 250], Extrapolation.CLAMP) }
+    ],
+  }));
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseAnim.value }],
+  }));
+
+  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollY.value = e.nativeEvent.contentOffset.y;
+  }, []);
 
   // --- ESTADOS DEL MODAL DE EXTRAS ---
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -89,19 +140,32 @@ export default function MenuScreen() {
     }
   };
 
+  const addToCartScale = useSharedValue(1);
+
   const handleAddToCart = () => {
     if (!selectedProduct) return;
-    
-    addItem({
-      id: selectedProduct.id,
-      name: selectedProduct.name,
-      price: selectedProduct.price,
-      image: selectedProduct.image,
-    }, selectedExtras);
 
-    setSelectedProduct(null);
-    setSelectedExtras([]);
+    // Animación de bounce antes de agregar
+    addToCartScale.value = withSequence(
+      withSpring(0.92, { damping: 12, stiffness: 300 }),
+      withSpring(1, { damping: 8, stiffness: 200 }),
+    );
+
+    setTimeout(() => {
+      addItem({
+        id: selectedProduct.id,
+        name: selectedProduct.name,
+        price: selectedProduct.price,
+        image: selectedProduct.image,
+      }, selectedExtras);
+      setSelectedProduct(null);
+      setSelectedExtras([]);
+    }, 120);
   };
+
+  const addToCartStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: addToCartScale.value }],
+  }));
 
   // Precio dinámico para el botón del Modal
   const currentModalTotal = selectedProduct 
@@ -112,7 +176,19 @@ export default function MenuScreen() {
 
   return (
      <SafeAreaView className="flex-1 bg-black" edges={['left', 'right']}>
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      {/* Fondo: burger con overlay negro para dar profundidad sin distraer */}
+      <Image
+        source={require('../../assets/images/menu/banner2.jpg')}
+        className="absolute inset-0 w-full h-full"
+        resizeMode="cover"
+      />
+      <View className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.88)' }} />
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
         
         {/* Banner Carrusel */}
         <View className="relative h-72 w-full border-y-2 border-yellow-500">
@@ -129,7 +205,13 @@ export default function MenuScreen() {
                 }}
             >
                 {BANNER_IMAGES.map((img, index) => (
-                    <Image key={index} source={img} style={{ width: SCREEN_WIDTH }} className="h-full" resizeMode="cover" />
+                    <Animated.Image
+                      key={index}
+                      source={img}
+                      style={[{ width: SCREEN_WIDTH }, bannerParallax]}
+                      className="h-[120%] -top-[10%]"
+                      resizeMode="cover"
+                    />
                 ))}
             </ScrollView>
            
@@ -149,7 +231,15 @@ export default function MenuScreen() {
            </View>
         </View>
 
-        <View className="p-4 pt-8">
+        {/* Tagline */}
+        <View className="px-5 pt-6 pb-1">
+          <Text className="text-white text-lg font-black uppercase">
+            Ganas de un <Text className="text-yellow-500">gustito?</Text>
+          </Text>
+          <Text className="text-neutral-400 text-[11px] mt-0.5 font-light uppercase tracking-[3px]">Elige lo que se te antoje</Text>
+        </View>
+
+        <View className="p-4 pt-4">
           {isLoading ? (
              <View className="flex-row flex-wrap justify-between">
                 <ProductSkeleton index={0} />
@@ -162,9 +252,10 @@ export default function MenuScreen() {
                 if (a.name.toLowerCase() === 'hamburguesas') return -1;
                 if (b.name.toLowerCase() === 'hamburguesas') return 1;
                 return 0;
-              }).map((category: any) => {
+              }).map((category: any, catIndex: number, filteredCats: any[]) => {
                 const categoryProducts = products?.filter((p: any) => p.isAvailable && p.categoryId === category.id);
                 if (!categoryProducts || categoryProducts.length === 0) return null;
+                const isLastCategory = catIndex === filteredCats.length - 1;
 
                 return (
                   <View key={category.id} className="mb-6">
@@ -181,15 +272,40 @@ export default function MenuScreen() {
                           entering={FadeInDown.delay(index * 100).springify()}
                           layout={LinearTransition.springify()}
                         >
-                          <TouchableOpacity activeOpacity={0.9} onPress={() => openExtrasModal(product)}>
-                            <View className="relative">
+                          <TouchableOpacity 
+                            activeOpacity={0.9} 
+                            onPress={() => openExtrasModal(product)}
+                            disabled={!product.inStock}
+                          >
+                            <View className="relative rounded-2xl border overflow-hidden" style={{ borderColor: product.inStock ? 'rgba(234,179,8,0.3)' : 'rgba(255,255,255,0.1)', shadowColor: product.inStock ? '#EAB308' : '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8, backgroundColor: '#000' }}>
                               <Image 
-                                source={product.image ? { uri: product.image } : require('../../assets/images/menu/bbq.jpg')} 
-                                className="w-full h-44 rounded-2xl bg-neutral-900"
+                                source={product.image ? { uri: product.image.startsWith('/') ? API_BASE_URL + product.image : product.image } : require('../../assets/images/menu/bbq.jpg')} 
+                                className="w-full h-44 bg-neutral-900"
                                 resizeMode="cover"
+                                style={{ opacity: product.inStock ? 1 : 0.4 }}
                               />
-                              <View className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded-lg">
-                                <Text className="text-yellow-500 font-bold text-xs">${product.price.toLocaleString('es-CL')}</Text>
+
+                              {!product.inStock && (
+                                <View className="absolute inset-0 bg-black/50 justify-center items-center z-30">
+                                  <View className="bg-red-600 px-3 py-1.5 rounded-full border border-red-400/50" style={{ transform: [{ rotate: '-10deg' }] }}>
+                                    <Text className="text-white font-black uppercase text-[12px] tracking-widest shadow-black shadow-sm">Agotado</Text>
+                                  </View>
+                                </View>
+                              )}
+                              
+                              {/* Efecto de Brillo Cruzado (Shimmer) */}
+                              <Animated.View 
+                                style={[{
+                                  position: 'absolute',
+                                  top: -50, bottom: -50, width: 30,
+                                  backgroundColor: 'rgba(255,255,255,0.4)',
+                                  shadowColor: 'white', shadowOpacity: 1, shadowRadius: 10, elevation: 5,
+                                  zIndex: 10
+                                }, shimmerStyle]}
+                              />
+
+                              <View className="absolute bottom-2 left-2 bg-black/80 px-2.5 py-1 rounded-lg border border-yellow-500/20 z-20">
+                                <Text className="text-yellow-500 font-black text-[11px] tracking-wider">${product.price.toLocaleString('es-CL')}</Text>
                               </View>
                             </View>
                             
@@ -197,14 +313,23 @@ export default function MenuScreen() {
                               <Text className="text-white text-[13px] font-black uppercase flex-1 mr-1" numberOfLines={1}>
                                 {product.name}
                               </Text>
-                              <View className="bg-yellow-500 w-7 h-7 rounded-lg items-center justify-center shadow-sm">
+                              <Animated.View style={pulseStyle} className="bg-yellow-500 w-7 h-7 rounded-lg items-center justify-center shadow-sm">
                                 <Text className="text-black font-black">+</Text>
-                              </View>
+                              </Animated.View>
                             </View>
                           </TouchableOpacity>
                         </Animated.View>
                       ))}
                     </View>
+
+                    {/* Separador entre categorías */}
+                    {!isLastCategory && (
+                      <View className="flex-row items-center justify-center mt-2 mb-0">
+                        <View className="h-px flex-1 bg-neutral-800/30" />
+                        <View className="w-1.5 h-1.5 bg-yellow-500/40 rounded-full mx-3" />
+                        <View className="h-px flex-1 bg-neutral-800/30" />
+                      </View>
+                    )}
                   </View>
                 );
               })
@@ -262,13 +387,16 @@ export default function MenuScreen() {
 
             {/* Footer con Botón Agregar */}
             <View className="p-6 bg-black border-t border-neutral-800 pb-10">
-              <TouchableOpacity 
-                onPress={handleAddToCart}
-                className="bg-yellow-500 py-4 rounded-2xl flex-row justify-between items-center px-6 shadow-lg shadow-yellow-500/20 active:bg-yellow-600"
-              >
-                <Text className="text-black font-black uppercase text-lg">Agregar al Carrito</Text>
-                <Text className="text-black font-black text-lg">${currentModalTotal.toLocaleString('es-CL')}</Text>
-              </TouchableOpacity>
+              <Animated.View style={addToCartStyle}>
+                <TouchableOpacity 
+                  onPress={handleAddToCart}
+                  className="bg-yellow-500 py-4 rounded-2xl flex-row justify-between items-center px-6 shadow-lg shadow-yellow-500/20"
+                  activeOpacity={0.75}
+                >
+                  <Text className="text-black font-black uppercase text-lg">Agregar al Carrito</Text>
+                  <Text className="text-black font-black text-lg">${currentModalTotal.toLocaleString('es-CL')}</Text>
+                </TouchableOpacity>
+              </Animated.View>
             </View>
 
           </View>

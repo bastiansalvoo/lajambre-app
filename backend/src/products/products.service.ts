@@ -7,12 +7,14 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll() {
-    const products = await this.prisma.product.findMany();
+  async findAll(isAdmin?: boolean) {
+    const products = await this.prisma.product.findMany({
+      where: isAdmin ? {} : { isAvailable: true }, // Admin ve todo, público solo disponibles
+      include: { category: true },
+    });
     return products.map((p) => ({
       ...p,
-      // Generamos la URL dinámica para que el celular la pueda descargar
-      image: p.image ? `http://192.168.1.14:3000/uploads/${p.image}` : null,
+      image: p.image ? `/uploads/${p.image}` : null,
     }));
   }
 

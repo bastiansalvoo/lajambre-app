@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, ScrollView, TouchableOpacity, Image, 
-  ActivityIndicator, Alert, Modal, TextInput, Switch 
+  ActivityIndicator, Modal, TextInput 
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router'; // <-- Importamos useRouter
+import { useRouter } from 'expo-router';
 import { api } from '../../src/api/api';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function MenuManagerScreen() {
   const queryClient = useQueryClient();
-  const router = useRouter(); // <-- Instanciamos router
+  const router = useRouter();
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -26,7 +27,7 @@ export default function MenuManagerScreen() {
   const { data: products, isLoading: loadingProducts } = useQuery({
     queryKey: ['admin-products'],
     queryFn: async () => {
-      const response = await api.get('/products');
+      const response = await api.get('/products?admin=true');
       return response.data;
     },
   });
@@ -118,7 +119,11 @@ export default function MenuManagerScreen() {
     },
     onError: (error: any) => {
       const msg = error.response?.data?.message || "Error al guardar";
-      Alert.alert("Error", Array.isArray(msg) ? msg[0] : msg);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: Array.isArray(msg) ? msg[0] : msg
+      });
     }
   });
 
@@ -127,121 +132,238 @@ export default function MenuManagerScreen() {
       await api.patch(`/products/${product.id}`, { isAvailable: !product.isAvailable });
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
     } catch (error) {
-      Alert.alert("Error", "No se pudo cambiar el estado del producto.");
+      Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo cambiar el estado' });
+    }
+  };
+
+  const toggleStock = async (product: any) => {
+    try {
+      await api.patch(`/products/${product.id}`, { inStock: !product.inStock });
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo cambiar el stock' });
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-black" edges={['top', 'left', 'right']}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: '#060606' }} edges={['top', 'left', 'right']}>
+      {/* Efectos Ambientales (Sin Blur) */}
+      <View className="absolute top-[-50] right-[-50] w-64 h-64 rounded-full" style={{ backgroundColor: '#EAB308', opacity: 0.04, transform: [{ scale: 1.5 }] }} />
+      <View className="absolute top-[40%] left-[-80] w-72 h-72 rounded-full" style={{ backgroundColor: '#22C55E', opacity: 0.03, transform: [{ scale: 1.5 }] }} />
+
+      {/* Fondo sutil */}
+      <Image source={require('../../assets/images/menu/banner.jpg')} className="absolute inset-0 w-full h-full" resizeMode="cover" style={{ opacity: 0.12 }} />
       
-      {/* 👑 CABECERA */}
-      <View className="px-5 py-4 flex-row items-center border-b border-neutral-900 bg-neutral-950">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2 -ml-2">
-          <FontAwesome name="arrow-left" size={20} color="#EAB308" />
-        </TouchableOpacity>
-        <View className="flex-row items-center flex-1">
-          <View className="w-8 h-8 bg-yellow-500 rounded-lg items-center justify-center mr-3">
-            <FontAwesome name="cutlery" size={16} color="black" />
-          </View>
-          <View>
-            <Text className="text-white text-lg font-black uppercase tracking-widest">Gestor de Menú</Text>
-            <Text className="text-neutral-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">Control de Catálogo</Text>
+      {/* Título Imponente */}
+      <View className="px-6 pt-6 pb-4 flex-row items-center justify-between">
+        <View>
+          <Text className="text-white text-[28px] font-black tracking-tight mb-0.5">Gestor Menú</Text>
+          <View className="bg-yellow-500/10 border border-yellow-500/20 px-3 py-1 rounded-full self-start">
+            <Text className="text-yellow-500 text-[10px] font-black uppercase tracking-widest">{products?.length || 0} Productos</Text>
           </View>
         </View>
+        <TouchableOpacity
+          onPress={() => { resetForm(); setIsModalVisible(true); }}
+          className="w-12 h-12 rounded-2xl items-center justify-center border border-yellow-500/30"
+          style={{ backgroundColor: '#EAB308', shadowColor: '#EAB308', shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
+        >
+          <FontAwesome name="plus" size={18} color="black" />
+        </TouchableOpacity>
       </View>
 
-      {/* Botón Flotante para Crear */}
-      <TouchableOpacity 
-        onPress={() => { resetForm(); setIsModalVisible(true); }}
-        className="absolute bottom-6 right-6 bg-yellow-500 w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-yellow-500/30 z-50 active:bg-yellow-600"
-      >
-        <FontAwesome name="plus" size={24} color="black" />
-      </TouchableOpacity>
-
-      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
         {loadingProducts && <ActivityIndicator color="#EAB308" className="mt-10" />}
-
-        {/* CONTENEDOR DE LA LISTA: Quitamos el flex-1 para que no se estire */}
-        <View className="pb-20">
+        <View className="pb-24 pt-2">
           {products?.map((item: any) => (
-            <View key={item.id} className={`bg-neutral-900 border ${item.isAvailable ? 'border-neutral-800' : 'border-red-500/30 bg-neutral-950'} p-3 rounded-2xl mb-4 flex-row items-center shadow-sm`}>
-              
-              <Image 
-                source={item.image ? { uri: item.image } : require('../../assets/images/menu/bbq.jpg')} 
-                className={`w-16 h-16 rounded-xl bg-neutral-800 ${!item.isAvailable && 'opacity-40'}`}
-                resizeMode="cover"
-              />
-              
-              <View className="flex-1 mx-4">
-                <Text className={`font-bold text-base uppercase ${item.isAvailable ? 'text-white' : 'text-neutral-500'}`} numberOfLines={1}>{item.name}</Text>
-                <Text className={`${item.isAvailable ? 'text-yellow-500' : 'text-red-500/70'} font-black mt-1`}>
-                  ${item.price.toLocaleString('es-CL')}
-                </Text>
-              </View>
+            <View
+              key={item.id}
+              className="rounded-[24px] mb-4 overflow-hidden border"
+              style={{ 
+                backgroundColor: '#111',
+                borderColor: item.isAvailable ? 'rgba(255,255,255,0.08)' : 'rgba(239, 68, 68, 0.2)',
+                opacity: item.isAvailable ? 1 : 0.65
+              }}
+            >
+              <View className="flex-row items-center p-4">
+                {/* Imagen */}
+                <View className="relative">
+                  <Image
+                    source={item.image ? { uri: item.image } : require('../../assets/images/menu/bbq.jpg')}
+                    className="w-[72px] h-[72px] rounded-2xl"
+                    style={{ backgroundColor: '#1A1A1A' }}
+                    resizeMode="cover"
+                  />
+                  <View className="absolute inset-0 border border-white/10 rounded-2xl pointer-events-none" />
+                </View>
 
-              <View className="items-end justify-between h-16 py-1">
-                <TouchableOpacity onPress={() => openEditModal(item)} className="p-2 bg-neutral-800 rounded-lg mb-2">
-                  <FontAwesome name="pencil" size={14} color="#EAB308" />
-                </TouchableOpacity>
-                
-                <Switch
-                  trackColor={{ false: "#3f3f46", true: "#EAB308" }}
-                  thumbColor={item.isAvailable ? "#000000" : "#a1a1aa"}
-                  ios_backgroundColor="#3f3f46"
-                  onValueChange={() => toggleAvailability(item)}
-                  value={item.isAvailable}
-                  style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
-                />
-              </View>
+                {/* Info */}
+                <View className="flex-1 ml-4 justify-center">
+                  <Text className="text-white font-black uppercase text-[15px] tracking-tight mb-1" numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <View className="flex-row items-center">
+                    <Text className="text-yellow-500 font-black text-lg">${item.price.toLocaleString('es-CL')}</Text>
+                    {!item.isAvailable && (
+                      <View className="ml-3 border px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
+                        <Text className="text-red-500 text-[9px] font-black uppercase tracking-widest">Pausado</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
 
+                {/* Acciones */}
+                <View className="items-center justify-center gap-y-3 ml-2 flex-row gap-x-2">
+                  <TouchableOpacity
+                    onPress={() => openEditModal(item)}
+                    className="w-10 h-10 rounded-xl items-center justify-center border border-white/5"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
+                  >
+                    <FontAwesome name="pencil" size={16} color="#EAB308" />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    onPress={() => toggleStock(item)}
+                    className="w-10 h-10 rounded-xl items-center justify-center border"
+                    style={{ 
+                      backgroundColor: item.inStock ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                      borderColor: item.inStock ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'
+                    }}
+                  >
+                    <FontAwesome
+                      name="shopping-cart"
+                      size={16}
+                      color={item.inStock ? '#22C55E' : '#EF4444'}
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => toggleAvailability(item)}
+                    className="w-10 h-10 rounded-xl items-center justify-center border"
+                    style={{ 
+                      backgroundColor: item.isAvailable ? 'rgba(34, 197, 94, 0.1)' : 'rgba(115, 115, 115, 0.1)',
+                      borderColor: item.isAvailable ? 'rgba(34, 197, 94, 0.2)' : 'rgba(115, 115, 115, 0.2)'
+                    }}
+                  >
+                    <FontAwesome
+                      name={item.isAvailable ? 'eye' : 'eye-slash'}
+                      size={16}
+                      color={item.isAvailable ? '#22C55E' : '#737373'}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
           ))}
         </View>
       </ScrollView>
 
-      {/* MODAL DE EDICIÓN/CREACIÓN */}
-      <Modal visible={isModalVisible} animationType="slide" transparent={true}>
+      {/* ── MODAL DE EDICIÓN ── */}
+      <Modal visible={isModalVisible} animationType="slide" transparent>
         <View className="flex-1 justify-end bg-black/90">
-          <View className="bg-neutral-900 rounded-t-[40px] p-8 h-[85%] border-t border-neutral-800 shadow-2xl">
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-white text-2xl font-black uppercase">
-                {editId ? 'Editar Producto' : 'Nueva Burger'}
+          <View className="rounded-t-[40px] p-6 h-[88%] border-t border-white/10" style={{ backgroundColor: '#0A0A0A' }}>
+            {/* Header del Modal */}
+            <View className="flex-row justify-between items-center mb-8">
+              <Text className="text-white text-[22px] font-black uppercase tracking-tight">
+                {editId ? 'Editar Producto' : 'Nuevo Producto'}
               </Text>
-              <TouchableOpacity onPress={resetForm}><FontAwesome name="times-circle" size={28} color="#525252" /></TouchableOpacity>
+              <TouchableOpacity onPress={resetForm} className="w-10 h-10 rounded-2xl items-center justify-center border border-white/10" style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                <FontAwesome name="close" size={16} color="#737373" />
+              </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <TouchableOpacity onPress={pickNewProductImage} className="w-full h-44 bg-neutral-800 rounded-3xl border-2 border-dashed border-neutral-700 items-center justify-center mb-6 overflow-hidden">
-                {newImage ? <Image source={{ uri: newImage }} className="w-full h-full" /> : <FontAwesome name="image" size={40} color="#EAB308" />}
-                <View className="absolute bottom-2 right-2 bg-black/60 p-2 rounded-lg">
-                  <FontAwesome name="camera" size={16} color="white" />
-                </View>
+              {/* Imagen */}
+              <TouchableOpacity onPress={pickNewProductImage} className="w-full h-48 rounded-3xl border-2 border-dashed items-center justify-center mb-8 overflow-hidden relative" style={{ backgroundColor: '#111', borderColor: 'rgba(255,255,255,0.1)' }}>
+                {newImage ? (
+                  <>
+                    <Image source={{ uri: newImage }} className="w-full h-full" resizeMode="cover" />
+                    <View className="absolute inset-0 bg-black/20 items-center justify-center">
+                      <View className="bg-black/50 w-12 h-12 rounded-full items-center justify-center">
+                        <FontAwesome name="pencil" size={18} color="white" />
+                      </View>
+                    </View>
+                  </>
+                ) : (
+                  <View className="items-center">
+                    <View className="w-14 h-14 rounded-full items-center justify-center mb-3" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)' }}>
+                      <FontAwesome name="camera" size={20} color="#EAB308" />
+                    </View>
+                    <Text className="text-neutral-400 text-[11px] font-bold uppercase tracking-widest">Tocar para añadir foto</Text>
+                  </View>
+                )}
               </TouchableOpacity>
 
-              <Text className="text-neutral-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Nombre</Text>
-              <TextInput value={newName} onChangeText={setNewName} className="bg-neutral-800 text-white p-4 rounded-xl mb-4 font-bold" placeholder="Ej: La Jambre Especial" placeholderTextColor="#444"/>
+              {/* Nombre */}
+              <Text className="text-neutral-500 font-black mb-2 uppercase text-[10px] tracking-widest">Nombre del Producto</Text>
+              <TextInput 
+                value={newName} 
+                onChangeText={setNewName} 
+                className="text-white p-5 rounded-2xl mb-5 font-bold text-[15px] border focus:border-yellow-500/50" 
+                style={{ backgroundColor: '#111', borderColor: 'rgba(255,255,255,0.05)' }}
+                placeholder="Ej: Lajambre Especial" 
+                placeholderTextColor="#555" 
+              />
 
-              <Text className="text-neutral-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Precio ($)</Text>
-              <TextInput value={newPrice} onChangeText={setNewPrice} keyboardType="numeric" className="bg-neutral-800 text-white p-4 rounded-xl mb-4 font-bold" placeholder="8990" placeholderTextColor="#444"/>
+              {/* Precio */}
+              <Text className="text-neutral-500 font-black mb-2 uppercase text-[10px] tracking-widest">Precio ($)</Text>
+              <TextInput 
+                value={newPrice} 
+                onChangeText={setNewPrice} 
+                keyboardType="numeric" 
+                className="text-white p-5 rounded-2xl mb-5 font-bold text-[15px] border focus:border-yellow-500/50" 
+                style={{ backgroundColor: '#111', borderColor: 'rgba(255,255,255,0.05)' }}
+                placeholder="8990" 
+                placeholderTextColor="#555" 
+              />
 
-              <Text className="text-neutral-400 font-bold mb-3 uppercase text-[10px] tracking-widest">Categoría</Text>
+              {/* Categoría */}
+              <Text className="text-neutral-500 font-black mb-3 uppercase text-[10px] tracking-widest">Categoría</Text>
               <View className="flex-row flex-wrap gap-2 mb-6">
                 {loadingCats ? <ActivityIndicator color="#EAB308" /> : categories?.map((cat: any) => (
                   <TouchableOpacity
                     key={cat.id}
                     onPress={() => setNewCategoryId(cat.id)}
-                    className={`px-4 py-2 rounded-full border ${newCategoryId === cat.id ? 'bg-yellow-500 border-yellow-500' : 'bg-neutral-800 border-neutral-700'}`}
+                    className="px-5 py-3 rounded-2xl border"
+                    style={{
+                      backgroundColor: newCategoryId === cat.id ? 'rgba(234, 179, 8, 0.15)' : '#111',
+                      borderColor: newCategoryId === cat.id ? 'rgba(234, 179, 8, 0.4)' : 'rgba(255,255,255,0.05)'
+                    }}
                   >
-                    <Text className={`font-bold text-[10px] uppercase ${newCategoryId === cat.id ? 'text-black' : 'text-neutral-400'}`}>{cat.name}</Text>
+                    <Text className="font-black text-[11px] uppercase tracking-wider" style={{ color: newCategoryId === cat.id ? '#EAB308' : '#737373' }}>
+                      {cat.name}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text className="text-neutral-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Descripción</Text>
-              <TextInput value={newDesc} onChangeText={setNewDesc} multiline className="bg-neutral-800 text-white p-4 rounded-xl mb-6 h-24" textAlignVertical="top" placeholder="Detalle ingredientes..." placeholderTextColor="#444"/>
+              {/* Descripción */}
+              <Text className="text-neutral-500 font-black mb-2 uppercase text-[10px] tracking-widest">Descripción</Text>
+              <TextInput 
+                value={newDesc} 
+                onChangeText={setNewDesc} 
+                multiline 
+                className="text-white p-5 rounded-2xl mb-8 h-28 border focus:border-yellow-500/50" 
+                style={{ backgroundColor: '#111', borderColor: 'rgba(255,255,255,0.05)' }}
+                textAlignVertical="top" 
+                placeholder="Detalle ingredientes y preparación..." 
+                placeholderTextColor="#555" 
+              />
 
-              <TouchableOpacity onPress={() => saveMutation.mutate()} disabled={saveMutation.isPending} className={`bg-yellow-500 p-5 rounded-2xl items-center mb-10 ${saveMutation.isPending && 'opacity-50'}`}>
-                {saveMutation.isPending ? <ActivityIndicator color="black" /> : <Text className="text-black font-black uppercase text-lg">{editId ? 'Guardar Cambios' : 'Publicar en Menú'}</Text>}
+              {/* Botón Guardar */}
+              <TouchableOpacity
+                onPress={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+                className={`p-5 rounded-[20px] items-center mb-10 flex-row justify-center border border-yellow-500/30 ${saveMutation.isPending && 'opacity-50'}`}
+                style={{ backgroundColor: '#EAB308', shadowColor: '#EAB308', shadowOpacity: 0.3, shadowRadius: 10, elevation: 4 }}
+              >
+                {saveMutation.isPending ? (
+                  <ActivityIndicator color="black" />
+                ) : (
+                  <>
+                    <FontAwesome name="check-circle" size={18} color="black" style={{ marginRight: 8 }} />
+                    <Text className="text-black font-black uppercase text-[15px] tracking-wide">{editId ? 'Guardar Cambios' : 'Publicar en Menú'}</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </ScrollView>
           </View>

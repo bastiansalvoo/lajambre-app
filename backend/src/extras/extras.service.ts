@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { CreateExtraDto } from './dto/create-extra.dto'; // Asegúrate de tener este archivo creado
+import { CreateExtraDto } from './dto/create-extra.dto';
 
 @Injectable()
 export class ExtrasService {
@@ -18,7 +18,7 @@ export class ExtrasService {
     return this.prisma.extra.findMany();
   }
 
-  // 3. Tu método original (intacto)
+  // 3. Método para actualizar disponibilidad (Original)
   async updateAvailability(id: number, isAvailable: boolean) {
     const extra = await this.prisma.extra.findUnique({ where: { id } });
 
@@ -29,6 +29,23 @@ export class ExtrasService {
     return this.prisma.extra.update({
       where: { id },
       data: { isAvailable },
+    });
+  }
+
+  // 👇 4. NUEVO MÉTODO: Actualizar nombre, precio o disponibilidad (El que pedía el Controlador)
+  async update(
+    id: number,
+    updateData: { name?: string; price?: number; isAvailable?: boolean },
+  ) {
+    const extra = await this.prisma.extra.findUnique({ where: { id } });
+
+    if (!extra) {
+      throw new NotFoundException(`El extra con ID ${id} no existe.`);
+    }
+
+    return this.prisma.extra.update({
+      where: { id },
+      data: updateData,
     });
   }
 }

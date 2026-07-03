@@ -15,9 +15,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      // Le aseguramos a TS que si no encuentra el .env, usará este string
-      secretOrKey:
-        configService.get<string>('JWT_SECRET') || 'secreto_de_respaldo_123',
+      secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
     });
   }
 

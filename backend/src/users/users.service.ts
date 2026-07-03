@@ -59,21 +59,18 @@ export class UsersService {
       0,
     );
 
-    // 🏆 PREMIOS OFICIALES LAJAMBRE
+    // 🏆 10 PREMIOS OFICIALES LAJAMBRE
     const listaPremios = [
+      { id: 'QUESO_GRATIS', nombre: 'Queso Extra', pts: 50, icono: '🧀' },
+      { id: 'TOCINO_GRATIS', nombre: 'Tocino Extra', pts: 80, icono: '🥓' },
       { id: 'BEBIDA_GRATIS', nombre: 'Bebida Gratis', pts: 150, icono: '🥤' },
-      {
-        id: 'DELIVERY_GRATIS',
-        nombre: 'Delivery Gratis',
-        pts: 200,
-        icono: '🚚',
-      },
-      {
-        id: 'BURGER_GRATIS',
-        nombre: 'Hamburguesa Gratis',
-        pts: 800,
-        icono: '🍔',
-      },
+      { id: 'DELIVERY_GRATIS', nombre: 'Delivery Gratis', pts: 200, icono: '🚚' },
+      { id: 'PAPAS_GRATIS', nombre: 'Papas Rústicas', pts: 250, icono: '🍟' },
+      { id: 'CARNE_EXTRA', nombre: 'Carne Extra', pts: 350, icono: '🥩' },
+      { id: 'DOS_BEBIDAS', nombre: 'Dos Bebidas', pts: 350, icono: '🧊' },
+      { id: 'UPGRADE_BURGER', nombre: 'Upgrade Premium', pts: 450, icono: '⭐' },
+      { id: 'DOS_POR_UNO', nombre: 'Promo 2x1', pts: 600, icono: '🍔' },
+      { id: 'BURGER_GRATIS', nombre: 'Burger Gratis', pts: 800, icono: '🍔' },
     ];
 
     // 🧠 GAMIFICACIÓN: Basado en PUNTOS HISTÓRICOS (Ya no bajan de nivel)
@@ -107,44 +104,60 @@ export class UsersService {
 
   @Cron('0 3 * * *')
   async cleanExpiredPoints() {
-    console.log('Iniciando limpieza de puntos vencidos...');
-    const now = new Date();
+    try {
+      console.log('🧹 [CRON] Iniciando limpieza de puntos vencidos...');
+      const now = new Date();
 
-    const expiredTxs = await this.prisma.pointTransaction.findMany({
-      where: { type: PointTransactionType.EARNED, expiresAt: { lte: now } },
-    });
-
-    for (const tx of expiredTxs) {
-      const user = await this.prisma.user.findUnique({
-        where: { id: tx.userId },
+      const expiredTxs = await this.prisma.pointTransaction.findMany({
+        where: { type: PointTransactionType.EARNED, expiresAt: { lte: now } },
       });
 
-      if (user && user.pointsBalance > 0) {
-        const pointsToRemove = Math.min(tx.points, user.pointsBalance);
+      let cleanedCount = 0;
+      for (const tx of expiredTxs) {
+        const user = await this.prisma.user.findUnique({
+          where: { id: tx.userId },
+        });
 
-        await this.prisma.$transaction([
-          this.prisma.user.update({
-            where: { id: user.id },
-            data: { pointsBalance: { decrement: pointsToRemove } },
-          }),
-          this.prisma.pointTransaction.create({
-            data: {
-              userId: user.id,
-              points: -pointsToRemove,
-              type: PointTransactionType.EXPIRED,
-            },
-          }),
-          this.prisma.pointTransaction.update({
+        if (user && user.pointsBalance > 0) {
+          const pointsToRemove = Math.min(tx.points, user.pointsBalance);
+
+          await this.prisma.$transaction([
+            this.prisma.user.update({
+              where: { id: user.id },
+              data: { pointsBalance: { decrement: pointsToRemove } },
+            }),
+            this.prisma.pointTransaction.create({
+              data: {
+                userId: user.id,
+                points: -pointsToRemove,
+                type: PointTransactionType.EXPIRED,
+              },
+            }),
+            this.prisma.pointTransaction.update({
+              where: { id: tx.id },
+              data: { expiresAt: null },
+            }),
+          ]);
+          cleanedCount++;
+        } else {
+          await this.prisma.pointTransaction.update({
             where: { id: tx.id },
             data: { expiresAt: null },
-          }),
-        ]);
-      } else {
-        await this.prisma.pointTransaction.update({
-          where: { id: tx.id },
-          data: { expiresAt: null },
-        });
+          });
+        }
       }
+      console.log(
+        `✅ [CRON] Limpieza completada: ${cleanedCount} usuarios afectados, ${expiredTxs.length} transacciones procesadas.`,
+      );
+    } catch (error) {
+      console.error('❌ [CRON] Error en limpieza de puntos:', error);
     }
+  }
+
+  async updatePushToken(userId: number, token: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { expoPushToken: token },
+    });
   }
 }
