@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Instalar dependencias
 COPY package.json package-lock.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Copiar el resto del código y el schema de Prisma
 COPY . .
@@ -21,7 +21,7 @@ WORKDIR /app
 
 # Copiar package.json y dependencias de producción
 COPY package.json package-lock.json ./
-RUN npm install --omit=dev
+RUN npm install --omit=dev --legacy-peer-deps
 
 # Copiar el cliente de Prisma generado
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
