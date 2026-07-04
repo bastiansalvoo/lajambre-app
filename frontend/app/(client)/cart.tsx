@@ -5,7 +5,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '@/src/utils/storage';
 import { api, API_BASE_URL } from '../../src/api/api';
 import { useCartStore, CartItem } from '../../src/store/cartStore';
 import * as WebBrowser from 'expo-web-browser';

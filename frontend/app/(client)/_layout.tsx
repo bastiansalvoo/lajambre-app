@@ -2,7 +2,7 @@ import { Tabs, useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
 import { View, Text, Image, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '@/src/utils/storage';
 import { useCartStore } from '../../src/store/cartStore';
 import { usePushNotifications } from '../../src/hooks/usePushNotifications';
 

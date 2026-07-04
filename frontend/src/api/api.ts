@@ -1,5 +1,5 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '@/src/utils/storage';
 
 // ⚙️ DESARROLLO LOCAL: Cambiá esta IP cuando estés en otro Wi-Fi.
 // ⚙️ PRODUCCIÓN: Define EXPO_PUBLIC_API_URL en tu archivo .env
