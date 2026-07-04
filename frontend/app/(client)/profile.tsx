@@ -7,7 +7,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '@/src/utils/storage';
 import { api, clearSession } from '../../src/api/api';
 import { useCartStore } from '../../src/store/cartStore';
 import { SafeAreaView } from 'react-native-safe-area-context';

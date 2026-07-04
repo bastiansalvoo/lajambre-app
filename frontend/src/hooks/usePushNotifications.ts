@@ -4,7 +4,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { api } from '../api/api';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '@/src/utils/storage';
 
 export interface PushNotificationState {
   expoPushToken?: string;

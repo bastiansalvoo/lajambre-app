@@ -3,7 +3,7 @@ import { TouchableOpacity, Text, View, ActivityIndicator, Image } from 'react-na
 import Toast from 'react-native-toast-message';
 import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '@/src/utils/storage';
 
 export default function AdminLayout() {
   const router = useRouter();
