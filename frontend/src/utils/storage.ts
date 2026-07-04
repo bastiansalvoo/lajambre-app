@@ -1,4 +1,4 @@
-import * as SecureStore from '@/src/utils/storage';
+import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 export async function getItemAsync(key: string): Promise<string | null> {
