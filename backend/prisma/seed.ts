@@ -29,25 +29,36 @@ async function main() {
 
   console.log('🧹 Base de datos limpiada y lista.');
 
-  // 2. Crear Usuario Administrador (Angelo)
+  // 2. Crear Usuarios Administradores
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash('admin123', salt);
 
-  const admin = await prisma.user.create({
-    data: {
-      email: 'admin@lajambre.cl',
-      password: hashedPassword,
-      name: 'Angelo (Admin)',
-      phone: '+5692158434', // Teléfono del flyer
-      role: 'ADMIN',
-      isVerified: true,
-    },
-  });
-  console.log(`👑 Admin creado: ${admin.email} (Clave: admin123)`);
+  const admins = [
+    { email: 'angelo@lajambre.cl', name: 'Angelo (Admin)' },
+    { email: 'bastian@lajambre.cl', name: 'Bastián (Admin)' },
+    { email: 'benjamin@lajambre.cl', name: 'Benjamín (Admin)' }
+  ];
+
+  for (const admin of admins) {
+    await prisma.user.create({
+      data: {
+        email: admin.email,
+        password: hashedPassword,
+        name: admin.name,
+        phone: '+5692158434', // Teléfono del flyer
+        role: 'ADMIN',
+        isVerified: true,
+      },
+    });
+    console.log(`👑 Admin creado: ${admin.email} (Clave: admin123)`);
+  }
 
   // 3. Crear Categorías
   const catBurgers = await prisma.category.create({
     data: { name: 'Hamburguesas' },
+  });
+  const catEsenciales = await prisma.category.create({
+    data: { name: 'Esenciales' },
   });
   const catBebidas = await prisma.category.create({
     data: { name: 'Bebidas' },
@@ -113,6 +124,43 @@ async function main() {
         price: 1200,
         categoryId: catBebidas.id,
       },
+      // ESENCIALES (Menú 2)
+      {
+        name: 'La Simple',
+        description: 'Carne 100g, cheddar, pepinillos, ketchup y mostaza.',
+        price: 5790,
+        categoryId: catEsenciales.id,
+      },
+      {
+        name: 'Cheese Burger',
+        description: 'Carne 100g, 2 láminas de cheddar.',
+        price: 6490,
+        categoryId: catEsenciales.id,
+      },
+      {
+        name: 'Bacon Cheese',
+        description: 'Carne 100g, cheddar, tocino y salsa Lajambre.',
+        price: 6790,
+        categoryId: catEsenciales.id,
+      },
+      {
+        name: 'Cebolla Grill',
+        description: 'Carne 100g, cheddar, cebolla grill y salsa Lajambre.',
+        price: 5990,
+        categoryId: catEsenciales.id,
+      },
+      {
+        name: 'Cheese Cebolla Crispy',
+        description: 'Carne 100g, cheddar, cebolla crispy y salsa Lajambre.',
+        price: 6990,
+        categoryId: catEsenciales.id,
+      },
+      {
+        name: 'Egg Cheese',
+        description: 'Carne 100g, cheddar, huevo frito y salsa Lajambre.',
+        price: 6590,
+        categoryId: catEsenciales.id,
+      },
     ],
   });
   console.log(`🍔 ${productos.count} productos agregados a la carta.`);
@@ -132,6 +180,7 @@ async function main() {
       { name: 'Tomate', price: 500 },
       { name: 'Pepinillos', price: 500 },
       // Para sumar más hambre
+      { name: 'Carne Extra (100g)', price: 2000 },
       { name: 'Carne Extra (150g)', price: 3000 },
     ],
   });
