@@ -90,10 +90,18 @@ export const usePushNotifications = (): PushNotificationState => {
 
     return () => {
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+        if (typeof Notifications.removeNotificationSubscription === 'function') {
+          Notifications.removeNotificationSubscription(notificationListener.current);
+        } else if (typeof notificationListener.current.remove === 'function') {
+          notificationListener.current.remove();
+        }
       }
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+        if (typeof Notifications.removeNotificationSubscription === 'function') {
+          Notifications.removeNotificationSubscription(responseListener.current);
+        } else if (typeof responseListener.current.remove === 'function') {
+          responseListener.current.remove();
+        }
       }
     };
   }, []);
