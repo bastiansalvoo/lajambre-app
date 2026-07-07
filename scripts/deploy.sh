@@ -19,7 +19,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 
 # 4. Correr migraciones de Prisma
 echo "🛠️ Ejecutando migraciones de base de datos..."
-docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
+docker compose -f docker-compose.prod.yml exec -T backend npx prisma@7.5.0 migrate deploy
 
 echo "✅ ¡Despliegue completado con éxito!"
 echo "Puedes ver los logs con: docker compose -f docker-compose.prod.yml logs -f"
