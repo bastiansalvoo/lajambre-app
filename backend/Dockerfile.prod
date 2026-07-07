@@ -31,8 +31,8 @@ COPY --from=builder /app/prisma ./prisma
 # Copiar el código compilado
 COPY --from=builder /app/dist ./dist
 
-# Crear carpeta de subidas de imágenes
-RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
+# Crear carpetas necesarias y asignar permisos al usuario node
+RUN mkdir -p /app/uploads /app/logs && chown -R node:node /app/uploads /app/logs
 
 # Optimización para Node.js (Liberar memoria más rápido en VPS pequeños)
 ENV NODE_ENV=production
