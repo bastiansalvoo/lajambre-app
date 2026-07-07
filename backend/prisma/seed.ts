@@ -31,7 +31,7 @@ async function main() {
 
   // 2. Crear Usuarios Administradores
   const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash('admin123', salt);
+  const hashedPassword = await bcrypt.hash('Lajambre2026$!Admin', salt);
 
   const admins = [
     { email: 'angelo@lajambre.cl', name: 'Angelo (Admin)' },
@@ -50,7 +50,7 @@ async function main() {
         isVerified: true,
       },
     });
-    console.log(`👑 Admin creado: ${admin.email} (Clave: admin123)`);
+    console.log(`👑 Admin creado: ${admin.email} (Clave: Lajambre2026$!Admin)`);
   }
 
   // 3. Crear Categorías
