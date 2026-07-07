@@ -7,7 +7,7 @@ import 'react-native-reanimated';
 import "../global.css";
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { View, Text, Dimensions } from 'react-native';
+import { View, Text, Dimensions, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
@@ -44,6 +44,7 @@ const toastConfig = {
 };
 
 export default function RootLayout() {
+  const { height } = useWindowDimensions();
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     ...FontAwesome.font,
@@ -78,7 +79,7 @@ export default function RootLayout() {
       <Toast 
         config={toastConfig} 
         position="bottom" 
-        bottomOffset={Dimensions.get('window').height / 2 - 100}
+        bottomOffset={height / 2 - 100}
         visibilityTime={3500}
       />
     </SafeAreaProvider>

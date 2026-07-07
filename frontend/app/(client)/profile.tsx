@@ -11,8 +11,7 @@ import * as SecureStore from '@/src/utils/storage';
 import { api, clearSession } from '../../src/api/api';
 import { useCartStore } from '../../src/store/cartStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const { width: W } = Dimensions.get('window');
+import { useWindowDimensions } from 'react-native';
 
 // Mapeo de nombres de premios a íconos FontAwesome (aproximación)
 const getRewardIcon = (name: string) => {
@@ -33,6 +32,7 @@ const getRewardIcon = (name: string) => {
 // Tarjeta VIP Flotante con Reflejo (Glare)
 // ─────────────────────────────────────────────────────────────────────────────
 function VIPCard({ profile, rewardsData, tierColor, tierLabel }: any) {
+  const { width: W } = useWindowDimensions();
   const floatAnim = useRef(new Animated.Value(0)).current;
   const glareAnim = useRef(new Animated.Value(0)).current;
 
@@ -158,6 +158,7 @@ function VIPCard({ profile, rewardsData, tierColor, tierLabel }: any) {
 // Pantalla Principal
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
+  const { width: W } = useWindowDimensions();
   const router = useRouter();
   const [profile, setProfile]     = useState<any>(null);
   const [rewardsData, setRewards] = useState<any>(null);

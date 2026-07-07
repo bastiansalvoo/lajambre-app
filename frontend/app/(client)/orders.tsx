@@ -234,7 +234,6 @@ function EmptyOrdersState({ onGoToMenu }: { onGoToMenu: () => void }) {
   const floatAnim  = useRef(new Animated.Value(0)).current;
   const glowAnim   = useRef(new Animated.Value(0)).current;
   const fadeAnim   = useRef(new Animated.Value(0)).current;
-  const { width: W, height: H } = Dimensions.get('window');
 
   useEffect(() => {
     // Fade in general

@@ -1,3 +1,25 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 
+  Web Responsiveness Fix: 
+  On devices wider than 500px (Desktop/Tablets), constrain the app to 480px width
+  and center it on the screen to emulate a mobile device layout.
+*/
+@media (min-width: 500px) {
+  html, body {
+    background-color: #111 !important; /* Dark background outside the app wrapper */
+  }
+
+  /* Expo Web root element */
+  #root, #__next {
+    max-width: 480px !important;
+    margin: 0 auto !important;
+    position: relative;
+    background-color: #000;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+    height: 100vh;
+    overflow: hidden; /* Prevent horizontal scrollbar on body */
+  }
+}

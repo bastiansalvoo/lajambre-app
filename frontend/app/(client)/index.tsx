@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Dimensions, ActivityIndicator, Modal, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Dimensions, ActivityIndicator, Modal, NativeSyntheticEvent, NativeScrollEvent, useWindowDimensions } from 'react-native';
 import Animated, {
   FadeInDown, LinearTransition,
   useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withSpring,
@@ -10,8 +10,6 @@ import { useQuery } from '@tanstack/react-query';
 import { api, API_BASE_URL } from '../../src/api/api';
 import { useCartStore, ExtraItem } from '../../src/store/cartStore';
 import { FontAwesome } from '@expo/vector-icons';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const BANNER_IMAGES = [
   require('../../assets/images/menu/banner.jpg'), 
@@ -32,6 +30,8 @@ function ProductSkeleton({ index }: { index: number }) {
 }
 
 export default function MenuScreen() {
+  const { width: windowWidth } = useWindowDimensions();
+  const [sliderWidth, setSliderWidth] = useState(windowWidth);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const addItem = useCartStore((state) => state.addItem);
@@ -118,7 +118,7 @@ export default function MenuScreen() {
     const carrouselTimer = setInterval(() => {
       setCurrentBannerIndex((prevIndex) => {
         const nextIndex = (prevIndex + 1) % BANNER_IMAGES.length;
-        scrollViewRef.current?.scrollTo({ x: nextIndex * SCREEN_WIDTH, animated: true });
+        scrollViewRef.current?.scrollTo({ x: nextIndex * sliderWidth, animated: true });
         return nextIndex;
       });
     }, 5000); 
@@ -191,7 +191,10 @@ export default function MenuScreen() {
       >
         
         {/* Banner Carrusel */}
-        <View className="relative h-72 w-full border-y-2 border-yellow-500">
+        <View 
+            className="relative h-72 w-full border-y-2 border-yellow-500" 
+            onLayout={(e) => setSliderWidth(e.nativeEvent.layout.width)}
+        >
             <ScrollView
                 ref={scrollViewRef}
                 horizontal
@@ -200,7 +203,7 @@ export default function MenuScreen() {
                 scrollEventThrottle={16}
                 onScroll={(event) => {
                     const contentOffset = event.nativeEvent.contentOffset.x;
-                    const index = Math.round(contentOffset / SCREEN_WIDTH);
+                    const index = Math.round(contentOffset / (sliderWidth || 1));
                     if (index !== currentBannerIndex) setCurrentBannerIndex(index);
                 }}
             >
@@ -208,7 +211,7 @@ export default function MenuScreen() {
                     <Animated.Image
                       key={index}
                       source={img}
-                      style={[{ width: SCREEN_WIDTH }, bannerParallax]}
+                      style={[{ width: sliderWidth }, bannerParallax]}
                       className="h-[120%] -top-[10%]"
                       resizeMode="cover"
                     />
