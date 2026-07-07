@@ -11,7 +11,7 @@ RUN npm install --legacy-peer-deps
 COPY . .
 
 # Generar cliente de Prisma y compilar NestJS
-RUN npx prisma generate
+RUN DATABASE_URL="postgresql://dummy" npx prisma generate
 RUN npm run build
 
 # Etapa 2: Producción (Imagen súper ligera)
