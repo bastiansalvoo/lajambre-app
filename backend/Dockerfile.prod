@@ -34,6 +34,10 @@ COPY --from=builder /app/dist ./dist
 # Crear carpetas necesarias y asignar permisos al usuario node
 RUN mkdir -p /app/uploads /app/logs && chown -R node:node /app/uploads /app/logs
 
+# Copiar script de inicio
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
+
 # Optimización para Node.js (Liberar memoria más rápido en VPS pequeños)
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=400"
@@ -42,4 +46,4 @@ USER node
 
 EXPOSE 3000
 
-CMD ["node", "dist/src/main"]
+CMD ["./entrypoint.sh"]
