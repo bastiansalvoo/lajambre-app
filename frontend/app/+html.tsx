@@ -53,12 +53,13 @@ export default function Root({ children }: PropsWithChildren) {
               max-width: 480px;
               width: 100%;
               background-color: #000;
-              min-height: 100vh;
+              min-height: 100dvh;
+              height: 100%;
               overflow: hidden;
               position: relative;
             }
-            /* Forzar Roboto en todos los textos de React Native Web */
-            #root div[dir="auto"] {
+            /* Forzar Roboto SOLO en textos por defecto (no íconos) */
+            [style*="system-ui"] {
               font-family: 'Roboto', sans-serif !important;
             }
           `
