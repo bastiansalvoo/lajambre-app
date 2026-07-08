@@ -34,7 +34,7 @@ function LogoHeader() {
       >
         <Image
           source={require('../../assets/images/menu/logo.png')}
-          className="w-11 h-11"
+          style={{ width: 44, height: 44 }} // Explicit dimensions fix web rendering 
           resizeMode="contain"
         />
       </TouchableOpacity>
@@ -76,7 +76,7 @@ function TabLayoutContent() {
           elevation: 0, 
           shadowOpacity: 0, 
         },
-        headerTitleAlign: 'center',
+        headerTitleAlign: 'left',
         // 👇 Aplicamos el LogoHeader a TODAS las pestañas
         headerTitle: () => <LogoHeader />,
       }}>
