@@ -325,8 +325,13 @@ export default function MenuScreen() {
                               <Text className="text-white text-[13px] font-black uppercase flex-1 mr-1" numberOfLines={1}>
                                 {product.name}
                               </Text>
-                              <Animated.View style={pulseStyle} className="bg-yellow-500 w-7 h-7 rounded-lg items-center justify-center shadow-sm">
-                                <Text className="text-black font-black">+</Text>
+                              <Animated.View 
+                                style={[
+                                  pulseStyle, 
+                                  { width: 28, height: 28, backgroundColor: '#EAB308', borderRadius: 8, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 1.41, elevation: 2 }
+                                ]}
+                              >
+                                <Text style={{ color: 'black', fontWeight: '900' }}>+</Text>
                               </Animated.View>
                             </View>
                           </TouchableOpacity>

@@ -1,4 +1,4 @@
-﻿import { ScrollViewStyleReset } from 'expo-router/html';
+import { ScrollViewStyleReset } from 'expo-router/html';
 import type { PropsWithChildren } from 'react';
 
 /**
@@ -20,6 +20,12 @@ export default function Root({ children }: PropsWithChildren) {
           name="viewport"
           content="width=device-width, initial-scale=1, shrink-to-fit=no"
         />
+        
+        {/* FUENTE ROBOTO PARA IGUALAR EXPO ANDROID */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
+
         {/* Reset de estilos de ScrollView de Expo (necesario) */}
         <ScrollViewStyleReset />
         {/*
@@ -50,6 +56,10 @@ export default function Root({ children }: PropsWithChildren) {
               min-height: 100vh;
               overflow: hidden;
               position: relative;
+            }
+            /* Forzar Roboto en todos los textos de React Native Web */
+            #root div[dir="auto"] {
+              font-family: 'Roboto', sans-serif !important;
             }
           `
         }} />
