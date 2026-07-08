@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Dimensions, ActivityIndicator, Modal, NativeSyntheticEvent, NativeScrollEvent, useWindowDimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Modal, NativeSyntheticEvent, NativeScrollEvent, useWindowDimensions, Platform } from 'react-native';
 import Animated, {
   FadeInDown, LinearTransition,
   useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withSpring,
@@ -19,11 +19,11 @@ const BANNER_IMAGES = [
 
 function ProductSkeleton({ index }: { index: number }) {
   return (
-    <Animated.View entering={FadeInDown.delay(index * 100)} className="w-[48%] mb-8">
-      <View className="w-full h-44 rounded-2xl bg-neutral-800 opacity-60" />
-      <View className="mt-3 flex-row justify-between items-center">
-         <View className="h-4 w-2/3 rounded-md bg-neutral-800 opacity-60" />
-         <View className="h-7 w-7 rounded-lg bg-neutral-800 opacity-60" />
+    <Animated.View entering={FadeInDown.delay(index * 100)} style={gridStyles.productCard}>
+      <View style={{ width: '100%', height: 176, borderRadius: 16, backgroundColor: '#262626', opacity: 0.6 }} />
+      <View style={{ marginTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+         <View style={{ height: 16, width: '66%', borderRadius: 6, backgroundColor: '#262626', opacity: 0.6 }} />
+         <View style={{ height: 28, width: 28, borderRadius: 8, backgroundColor: '#262626', opacity: 0.6 }} />
       </View>
     </Animated.View>
   );
@@ -31,7 +31,10 @@ function ProductSkeleton({ index }: { index: number }) {
 
 export default function MenuScreen() {
   const { width: windowWidth } = useWindowDimensions();
-  const [sliderWidth, setSliderWidth] = useState(windowWidth);
+  // En web, limitamos el ancho inicial al máximo del contenedor (480px) para que el carrusel
+  // no se inicialice con el ancho completo del browser (lo que rompería la paginación)
+  const initialWidth = Platform.OS === 'web' ? Math.min(windowWidth, 480) : windowWidth;
+  const [sliderWidth, setSliderWidth] = useState(initialWidth);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const addItem = useCartStore((state) => state.addItem);
@@ -267,11 +270,11 @@ export default function MenuScreen() {
                       <Text className="text-white text-xl font-bold uppercase tracking-widest">{category.name}</Text>
                     </View>
 
-                    <View className="flex-row flex-wrap justify-between">
+                    <View style={gridStyles.productGrid}>
                       {categoryProducts.map((product: any, index: number) => (
                         <Animated.View 
                           key={product.id} 
-                          className="w-[48%] mb-8"
+                          style={gridStyles.productCard}
                           entering={FadeInDown.delay(index * 100).springify()}
                           layout={LinearTransition.springify()}
                         >
@@ -283,9 +286,8 @@ export default function MenuScreen() {
                             <View className="relative rounded-2xl border overflow-hidden" style={{ borderColor: product.inStock ? 'rgba(234,179,8,0.3)' : 'rgba(255,255,255,0.1)', shadowColor: product.inStock ? '#EAB308' : '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8, backgroundColor: '#000' }}>
                               <Image 
                                 source={product.image ? { uri: product.image.startsWith('/') ? API_BASE_URL + product.image : product.image } : require('../../assets/images/menu/bbq.jpg')} 
-                                className="w-full h-44 bg-neutral-900"
+                                style={{ width: '100%', height: 176, backgroundColor: '#171717', opacity: product.inStock ? 1 : 0.4 }}
                                 resizeMode="cover"
-                                style={{ opacity: product.inStock ? 1 : 0.4 }}
                               />
 
                               {!product.inStock && (
@@ -415,5 +417,20 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 1)', 
     textShadowOffset: {width: 0, height: 3}, 
     textShadowRadius: 4, 
+  },
+});
+
+// Estilos de grilla separados para mayor claridad
+const gridStyles = StyleSheet.create({
+  // Contenedor de la grilla de 2 columnas
+  productGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  // Cada tarjeta de producto (48% del ancho = 2 columnas con 4% de espacio entre ellas)
+  productCard: {
+    width: '48%',
+    marginBottom: 32,
   },
 });
