@@ -76,7 +76,7 @@ function TabLayoutContent() {
           elevation: 0, 
           shadowOpacity: 0, 
         },
-        headerTitleAlign: 'left',
+        headerTitleAlign: 'center',
         // 👇 Aplicamos el LogoHeader a TODAS las pestañas
         headerTitle: () => <LogoHeader />,
       }}>
