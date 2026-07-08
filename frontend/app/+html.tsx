@@ -1,38 +1,60 @@
-import { ScrollViewStyleReset } from 'expo-router/html';
+﻿import { ScrollViewStyleReset } from 'expo-router/html';
+import type { PropsWithChildren } from 'react';
 
-// This file is web-only and used to configure the root HTML for every
-// web page during static rendering.
-// The contents of this function only run in Node.js environments and
-// do not have access to the DOM or browser APIs.
-export default function Root({ children }: { children: React.ReactNode }) {
+/**
+ * Este archivo personaliza el HTML raíz de la versión web de la app.
+ * Solo aplica en builds web (expo export -p web). 
+ * No afecta iOS ni Android en absoluto.
+ * 
+ * El CSS aquí centra la app en pantallas de PC, emulando un celular
+ * centrado en un fondo oscuro — exactamente como hacen Instagram, TikTok, etc.
+ */
+export default function Root({ children }: PropsWithChildren) {
   return (
-    <html lang="en">
+    <html lang="es">
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-
-        {/* 
-          Disable body scrolling on web. This makes ScrollView components work closer to how they do on native. 
-          However, body scrolling is often nice to have for mobile web. If you want to enable it, remove this line.
-        */}
+        {/* Viewport crítico: sin esto en móvil la página se ve tiny */}
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, shrink-to-fit=no"
+        />
+        {/* Reset de estilos de ScrollView de Expo (necesario) */}
         <ScrollViewStyleReset />
-
-        {/* Using raw CSS styles as an escape-hatch to ensure the background color never flickers in dark-mode. */}
-        <style dangerouslySetInnerHTML={{ __html: responsiveBackground }} />
-        {/* Add any additional <head> elements that you want globally available on web... */}
+        {/*
+          CSS WEB-ONLY: Centra la app en pantalla de PC
+          El #root es el div raíz de React Native Web.
+          body + display:flex + justify-content:center = centra el #root
+          #root con max-width:480px emula la pantalla del celular
+          Esta técnica es la misma que usan las grandes apps (TikTok, Threads, etc.)
+        */}
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            html, body {
+              margin: 0;
+              padding: 0;
+              height: 100%;
+              background-color: #111;
+            }
+            body {
+              display: flex;
+              justify-content: center;
+              align-items: stretch;
+            }
+            #root {
+              flex: 1;
+              max-width: 480px;
+              width: 100%;
+              background-color: #000;
+              min-height: 100vh;
+              overflow: hidden;
+              position: relative;
+            }
+          `
+        }} />
       </head>
       <body>{children}</body>
     </html>
   );
 }
-
-const responsiveBackground = `
-body {
-  background-color: #fff;
-}
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: #000;
-  }
-}`;

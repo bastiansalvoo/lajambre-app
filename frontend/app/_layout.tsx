@@ -7,9 +7,10 @@ import 'react-native-reanimated';
 import "../global.css";
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { View, Text, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -21,6 +22,7 @@ const queryClient = new QueryClient();
 
 SplashScreen.preventAutoHideAsync();
 
+// Diseño personalizado Toast (Modo Oscuro Lajambre)
 const toastConfig = {
   success: (props: any) => (
     <View className="w-[85%] bg-neutral-900 border-2 border-yellow-500 rounded-3xl p-6 items-center shadow-2xl shadow-yellow-500/40">
@@ -41,8 +43,6 @@ const toastConfig = {
     </View>
   ),
 };
-
-const IS_WEB = Platform.OS === 'web';
 
 export default function RootLayout() {
   const { height } = useWindowDimensions();
@@ -66,35 +66,23 @@ export default function RootLayout() {
   }
 
   return (
-    <View style={[
-      { flex: 1 },
-      IS_WEB
-        ? { flexDirection: 'row', justifyContent: 'center', backgroundColor: '#0a0a0a' }
-        : { backgroundColor: '#000' },
-    ]}>
-      <View style={[
-        { flex: 1, backgroundColor: '#000' },
-        IS_WEB ? { maxWidth: 480, overflow: 'hidden' } : {},
-      ]}>
-        <SafeAreaProvider>
-          <QueryClientProvider client={queryClient}>
-            <Stack>
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="(client)" options={{ headerShown: false }} />
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen name="(admin)" options={{ headerShown: false }} />
-              <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
-            </Stack>
-          </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(client)" options={{ headerShown: false }} />
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+          <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
+        </Stack>
+      </QueryClientProvider>
 
-          <Toast
-            config={toastConfig}
-            position="bottom"
-            bottomOffset={height / 2 - 100}
-            visibilityTime={3500}
-          />
-        </SafeAreaProvider>
-      </View>
-    </View>
+      <Toast
+        config={toastConfig}
+        position="bottom"
+        bottomOffset={height / 2 - 100}
+        visibilityTime={3500}
+      />
+    </SafeAreaProvider>
   );
 }
