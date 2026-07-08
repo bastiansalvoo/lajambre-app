@@ -7,7 +7,7 @@ import 'react-native-reanimated';
 import "../global.css";
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { View, Text, useWindowDimensions, Platform, StyleSheet } from 'react-native';
+import { View, Text, useWindowDimensions, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
@@ -21,7 +21,6 @@ const queryClient = new QueryClient();
 
 SplashScreen.preventAutoHideAsync();
 
-// Diseño personalizado Toast (Modo Oscuro Lajambre)
 const toastConfig = {
   success: (props: any) => (
     <View className="w-[85%] bg-neutral-900 border-2 border-yellow-500 rounded-3xl p-6 items-center shadow-2xl shadow-yellow-500/40">
@@ -42,6 +41,8 @@ const toastConfig = {
     </View>
   ),
 };
+
+const IS_WEB = Platform.OS === 'web';
 
 export default function RootLayout() {
   const { height } = useWindowDimensions();
@@ -64,19 +65,16 @@ export default function RootLayout() {
     return null;
   }
 
-  const isWeb = Platform.OS === 'web';
-
   return (
-    // Fondo gris oscuro para el área exterior a la "pantalla del celular" en PC
-    <View style={[styles.outerContainer, { backgroundColor: isWeb ? '#111' : '#000' }]}>
-      {/* 
-        Contenedor interno: en web usa maxWidth + alignSelf para centrarse.
-        Esto es el equivalente CSS de: max-width: 480px; margin: 0 auto;
-        Funciona incluso si width=0 durante SSR porque maxWidth solo limita, no colapsa.
-      */}
+    <View style={[
+      { flex: 1 },
+      IS_WEB
+        ? { flexDirection: 'row', justifyContent: 'center', backgroundColor: '#0a0a0a' }
+        : { backgroundColor: '#000' },
+    ]}>
       <View style={[
-        styles.innerContainer,
-        isWeb ? styles.webInner : styles.nativeInner,
+        { flex: 1, backgroundColor: '#000' },
+        IS_WEB ? { maxWidth: 480, overflow: 'hidden' } : {},
       ]}>
         <SafeAreaProvider>
           <QueryClientProvider client={queryClient}>
@@ -100,26 +98,3 @@ export default function RootLayout() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  // Ocupa todo el alto y ancho de la pantalla/ventana
-  outerContainer: {
-    flex: 1,
-  },
-  // Base compartida para ambos modos
-  innerContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  // En web: limita el ancho y se centra con margin auto (alignSelf: 'center' + width: '100%' + maxWidth)
-  webInner: {
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-  },
-  // En nativo: ocupa todo el ancho disponible
-  nativeInner: {
-    width: '100%',
-  },
-});
-
