@@ -182,10 +182,10 @@ export default function MenuScreen() {
       {/* Fondo: burger con overlay negro para dar profundidad sin distraer */}
       <Image
         source={require('../../assets/images/menu/banner2.jpg')}
-        className="absolute inset-0 w-full h-full"
+        style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]}
         resizeMode="cover"
       />
-      <View className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.88)' }} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.88)' }]} />
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
@@ -214,8 +214,10 @@ export default function MenuScreen() {
                     <Animated.Image
                       key={index}
                       source={img}
-                      style={[{ width: sliderWidth }, bannerParallax]}
-                      className="h-[120%] -top-[10%]"
+                      style={[
+                        { width: sliderWidth, height: 350, marginTop: -30 }, // Fixed explicit dimensions for Web
+                        bannerParallax
+                      ]}
                       resizeMode="cover"
                     />
                 ))}
@@ -230,7 +232,12 @@ export default function MenuScreen() {
                     <Animated.View 
                       key={index} 
                       layout={LinearTransition} 
-                      className={`h-2 rounded-full ${index === currentBannerIndex ? 'w-5 bg-yellow-500' : 'w-2 bg-neutral-600'}`} 
+                      style={{
+                        height: 8,
+                        borderRadius: 4,
+                        width: index === currentBannerIndex ? 20 : 8,
+                        backgroundColor: index === currentBannerIndex ? '#EAB308' : '#525252',
+                      }}
                     />
                   ))}
               </View>
