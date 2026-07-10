@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, ScrollView, TouchableOpacity, Image, 
-  ActivityIndicator, Modal, TextInput 
+  ActivityIndicator, Modal, TextInput, Platform 
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,6 +10,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { api } from '../../src/api/api';
 import * as ImagePicker from 'expo-image-picker';
+
+const appendImageToFormData = async (formData: FormData, uri: string, fieldName = 'image') => {
+  if (Platform.OS === 'web') {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    formData.append(fieldName, blob, 'upload.jpg');
+  } else {
+    const filename = uri.split('/').pop() || 'upload.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : `image/jpeg`;
+    // @ts-ignore
+    formData.append(fieldName, { uri, name: filename, type });
+  }
+};
 
 export default function MenuManagerScreen() {
   const queryClient = useQueryClient();
@@ -85,11 +99,7 @@ export default function MenuManagerScreen() {
         
         if (newImage && !newImage.startsWith('http')) {
           const formData = new FormData();
-          const filename = newImage.split('/').pop() || 'burger.jpg';
-          const match = /\.(\w+)$/.exec(filename);
-          const type = match ? `image/${match[1]}` : `image/jpeg`;
-          // @ts-ignore
-          formData.append('image', { uri: newImage, name: filename, type });
+          await appendImageToFormData(formData, newImage);
           await api.patch(`/products/${editId}/image`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
           });
@@ -101,12 +111,8 @@ export default function MenuManagerScreen() {
         formData.append('price', newPrice);
         formData.append('categoryId', newCategoryId!.toString());
 
-        if (newImage) {
-          const filename = newImage.split('/').pop() || 'burger.jpg';
-          const match = /\.(\w+)$/.exec(filename);
-          const type = match ? `image/${match[1]}` : `image/jpeg`;
-          // @ts-ignore
-          formData.append('image', { uri: newImage, name: filename, type });
+        if (newImage && !newImage.startsWith('http')) {
+          await appendImageToFormData(formData, newImage);
         }
         await api.post('/products', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
