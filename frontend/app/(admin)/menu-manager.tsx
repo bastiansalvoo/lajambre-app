@@ -186,11 +186,10 @@ export default function MenuManagerScreen() {
             >
               <View className="flex-row items-center p-4">
                 {/* Imagen */}
-                <View className="relative">
+                <View className="relative" style={{ width: 72, height: 72 }}>
                   <Image
                     source={item.image ? { uri: item.image } : require('../../assets/images/menu/bbq.jpg')}
-                    className="w-[72px] h-[72px] rounded-2xl"
-                    style={{ backgroundColor: '#1A1A1A' }}
+                    style={{ width: 72, height: 72, borderRadius: 16, backgroundColor: '#1A1A1A' }}
                     resizeMode="cover"
                   />
                   <View className="absolute inset-0 border border-white/10 rounded-2xl pointer-events-none" />

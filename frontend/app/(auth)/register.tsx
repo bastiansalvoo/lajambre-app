@@ -77,7 +77,7 @@ export default function RegisterScreen() {
           >
             {/* Volver */}
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/login')}
               className="w-10 h-10 rounded-full bg-white/10 items-center justify-center border border-white/10 mb-6"
             >
               <FontAwesome name="arrow-left" size={16} color="white" />
