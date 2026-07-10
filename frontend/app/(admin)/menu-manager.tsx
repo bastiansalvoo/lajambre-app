@@ -100,9 +100,7 @@ export default function MenuManagerScreen() {
         if (newImage && !newImage.startsWith('http')) {
           const formData = new FormData();
           await appendImageToFormData(formData, newImage);
-          await api.patch(`/products/${editId}/image`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
+          await api.patch(`/products/${editId}/image`, formData);
         }
       } else {
         const formData = new FormData();
@@ -114,9 +112,7 @@ export default function MenuManagerScreen() {
         if (newImage && !newImage.startsWith('http')) {
           await appendImageToFormData(formData, newImage);
         }
-        await api.post('/products', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        await api.post('/products', formData);
       }
     },
     onSuccess: () => {
