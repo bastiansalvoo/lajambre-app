@@ -64,7 +64,7 @@ export default function RegisterScreen() {
           style={{ width: '100%', height: '100%' }}
           resizeMode="cover"
         >
-          <View className="flex-1 bg-black/75" />
+          <View style={{ width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.75)' }} />
         </ImageBackground>
       </RNAnimated.View>
 
@@ -105,8 +105,16 @@ export default function RegisterScreen() {
 
             {/* Tarjeta Glass */}
             <RNAnimated.View
-              style={{ opacity: cardFade, transform: [{ translateY: cardSlide }] }}
-              className="bg-black/40 backdrop-blur-xl rounded-3xl border border-white/10 p-6"
+              style={{ 
+                opacity: cardFade, 
+                transform: [{ translateY: cardSlide }],
+                backgroundColor: 'rgba(0,0,0,0.4)',
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.1)',
+                padding: 24,
+                marginTop: 8
+              }}
             >
               {/* Nombre */}
               <View className="mb-4">
