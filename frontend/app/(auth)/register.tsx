@@ -61,7 +61,7 @@ export default function RegisterScreen() {
       <RNAnimated.View style={{ opacity: bgFade, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
         <ImageBackground
           source={require('../../assets/images/menu/banner2.jpg')}
-          className="flex-1"
+          style={{ width: '100%', height: '100%' }}
           resizeMode="cover"
         >
           <View className="flex-1 bg-black/75" />
@@ -94,7 +94,7 @@ export default function RegisterScreen() {
                 </Text>
                 <Image
                   source={require('../../assets/images/menu/logo.png')}
-                  className="w-8 h-8"
+                  style={{ width: 32, height: 32 }}
                   resizeMode="contain"
                 />
               </View>

@@ -87,7 +87,7 @@ export default function LoginScreen() {
       <RNAnimated.View style={{ opacity: bgFade, ...StyleSheet.absoluteFillObject }}>
         <ImageBackground
           source={require('../../assets/images/menu/banner.jpg')}
-          className="flex-1"
+          style={{ width: '100%', height: '100%' }}
           resizeMode="cover"
         >
           <View className="flex-1 bg-black/75" />
@@ -112,7 +112,7 @@ export default function LoginScreen() {
             >
               <Image
                 source={require('../../assets/images/menu/logo.png')}
-                className="w-24 h-24"
+                style={{ width: 96, height: 96 }}
                 resizeMode="contain"
               />
               <Text className="text-white text-5xl font-black uppercase mt-3">
