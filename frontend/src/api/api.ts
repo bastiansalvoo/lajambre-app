@@ -3,7 +3,7 @@ import * as SecureStore from '@/src/utils/storage';
 
 // ⚙️ DESARROLLO LOCAL: Cambiá esta IP cuando estés en otro Wi-Fi.
 // ⚙️ PRODUCCIÓN: Define EXPO_PUBLIC_API_URL en tu archivo .env
-const LOCAL_IP = '192.168.0.21';
+const LOCAL_IP = '192.168.0.43';
 const LOCAL_PORT = '3000';
 
 export const API_BASE_URL =

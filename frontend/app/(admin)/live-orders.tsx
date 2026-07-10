@@ -115,13 +115,13 @@ export default function LiveOrdersScreen() {
       <View className="absolute top-[40%] left-[-80] w-72 h-72 rounded-full" style={{ backgroundColor: '#F97316', opacity: 0.03, transform: [{ scale: 1.5 }] }} />
 
       {/* Fondo sutil */}
-      <Image source={require('../../assets/images/menu/banner2.jpg')} className="absolute inset-0 w-full h-full" resizeMode="cover" style={{ opacity: 0.12 }} />
+      <Image source={require('../../assets/images/menu/banner2.jpg')} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0.12 }} />
 
       {/* Título Imponente */}
       <View className="px-6 pt-6 pb-4 flex-row items-center justify-between">
         <View>
           <View className="flex-row items-center mb-1">
-            <Animated.View style={{ opacity: pulseValue, transform: [{ scale: pulseValue }] }} className="w-2.5 h-2.5 bg-green-500 rounded-full mr-2 shadow-sm shadow-green-500" />
+            <Animated.View style={{ opacity: pulseValue, transform: [{ scale: pulseValue }], width: 10, height: 10, backgroundColor: '#22C55E', borderRadius: 9999, marginRight: 8, shadowColor: '#22C55E', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2, elevation: 2 }} />
             <Text className="text-green-500/80 text-[10px] font-black uppercase tracking-widest">En Vivo · Auto-refresh</Text>
           </View>
           <Text className="text-white text-[28px] font-black tracking-tight">Monitor Cocina</Text>

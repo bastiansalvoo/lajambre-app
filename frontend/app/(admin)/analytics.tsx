@@ -59,7 +59,7 @@ export default function AnalyticsScreen() {
       <View className="absolute top-[30%] left-[-100] w-80 h-80 rounded-full" style={{ backgroundColor: '#22C55E', opacity: 0.03, transform: [{ scale: 1.5 }] }} />
 
       {/* Fondo sutil fotográfico */}
-      <Image source={require('../../assets/images/menu/banner2.jpg')} className="absolute inset-0 w-full h-full" resizeMode="cover" style={{ opacity: 0.12 }} />
+      <Image source={require('../../assets/images/menu/banner2.jpg')} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0.12 }} />
       
       <ScrollView
         className="flex-1"

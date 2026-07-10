@@ -23,9 +23,11 @@ export class MailService {
     token: string,
     userName: string,
   ) {
+    const apiBaseUrl = this.configService.get<string>('API_BASE_URL');
     const host = this.configService.get<string>('API_HOST', 'localhost');
     const port = this.configService.get<string>('PORT', '3000');
-    const url = `http://${host}:${port}/auth/verify?token=${token}`;
+    const baseUrl = apiBaseUrl || `http://${host}:${port}`;
+    const url = `${baseUrl}/auth/verify?token=${token}`;
 
     const mailOptions = {
       from: this.configService.get<string>('SMTP_FROM', '"Lajambre" <lajambre.contacto@gmail.com>'),

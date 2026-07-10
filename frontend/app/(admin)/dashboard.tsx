@@ -85,7 +85,7 @@ export default function DashboardScreen() {
       <View className="absolute top-[-50] right-[-50] w-64 h-64 rounded-full" style={{ backgroundColor: '#EAB308', opacity: 0.04, transform: [{ scale: 1.5 }] }} />
       <View className="absolute top-[30%] left-[-80] w-72 h-72 rounded-full" style={{ backgroundColor: '#22C55E', opacity: 0.03, transform: [{ scale: 1.5 }] }} />
       
-      <Image source={require('../../assets/images/menu/banner2.jpg')} className="absolute inset-0 w-full h-full" resizeMode="cover" style={{ opacity: 0.2 }} />
+      <Image source={require('../../assets/images/menu/banner2.jpg')} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0.2 }} />
       
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#EAB308" colors={['#EAB308']} progressBackgroundColor="#111" />}>
@@ -205,7 +205,7 @@ export default function DashboardScreen() {
         </View>
 
         {/* Action Banner: Monitor en Vivo */}
-        <Animated.View className="px-6 mb-5" style={{ transform: [{ scale: pulseValue }] }}>
+        <Animated.View style={{ paddingHorizontal: 24, marginBottom: 20, transform: [{ scale: pulseValue }] }}>
           <TouchableOpacity onPress={() => router.push('/(admin)/live-orders')} activeOpacity={0.85}
             className="rounded-[24px] p-5 flex-row items-center border border-yellow-500/30 overflow-hidden relative" 
             style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)' }}>

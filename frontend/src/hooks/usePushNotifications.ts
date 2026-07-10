@@ -50,14 +50,20 @@ export const usePushNotifications = (): PushNotificationState => {
         return;
       }
       
-      const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId ??
-        Constants?.easConfig?.projectId;
+      try {
+        const projectId =
+          Constants?.expoConfig?.extra?.eas?.projectId ??
+          Constants?.easConfig?.projectId;
 
-      if (!projectId) {
-         token = (await Notifications.getExpoPushTokenAsync()).data;
-      } else {
-         token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+        if (!projectId) {
+           // Provide a dummy projectId or it will throw an unhandled promise rejection in SDK 50+
+           token = (await Notifications.getExpoPushTokenAsync({ projectId: 'dummy-project-id' })).data;
+        } else {
+           token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+        }
+      } catch (error) {
+        console.log('⚠️ Notificaciones Push desactivadas: Expo Go ya no soporta notificaciones remotas en SDK 53+.');
+        return undefined;
       }
     }
 
