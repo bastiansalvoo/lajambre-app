@@ -58,7 +58,7 @@ export default function RegisterScreen() {
   return (
     <View className="flex-1 bg-black">
       {/* ── FONDO ── */}
-      <RNAnimated.View style={{ opacity: bgFade, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+      <RNAnimated.View style={{ opacity: bgFade, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
         <ImageBackground
           source={require('../../assets/images/menu/banner2.jpg')}
           style={{ width: '100%', height: '100%' }}
@@ -68,8 +68,8 @@ export default function RegisterScreen() {
         </ImageBackground>
       </RNAnimated.View>
 
-      <SafeAreaView className="flex-1" edges={['top', 'bottom']}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+      <SafeAreaView className="flex-1" edges={['top', 'bottom']} style={{ zIndex: 1 }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'web' ? undefined : (Platform.OS === 'ios' ? 'padding' : 'height')} className="flex-1">
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32 }}

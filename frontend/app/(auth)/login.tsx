@@ -84,9 +84,9 @@ export default function LoginScreen() {
   return (
     <View className="flex-1 bg-black">
       {/* ── FONDO: Imagen de burger con overlay oscuro ── */}
-      <RNAnimated.View style={{ opacity: bgFade, ...StyleSheet.absoluteFillObject }}>
+      <RNAnimated.View style={{ opacity: bgFade, ...StyleSheet.absoluteFillObject, zIndex: 0 }}>
         <ImageBackground
-          source={require('../../assets/images/menu/banner.jpg')}
+          source={require('../../assets/images/menu/banner2.jpg')}
           style={{ width: '100%', height: '100%' }}
           resizeMode="cover"
         >
@@ -94,8 +94,8 @@ export default function LoginScreen() {
         </ImageBackground>
       </RNAnimated.View>
 
-      <SafeAreaView className="flex-1" edges={['left', 'right', 'bottom', 'top']}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+      <SafeAreaView className="flex-1" edges={['left', 'right', 'bottom', 'top']} style={{ zIndex: 1 }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'web' ? undefined : (Platform.OS === 'ios' ? 'padding' : 'height')} className="flex-1">
           <View className="flex-1 justify-between px-6 pt-4 pb-8">
             {/* ── VOLVER ── */}
             <TouchableOpacity
