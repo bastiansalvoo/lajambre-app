@@ -115,7 +115,7 @@ export default function LiveOrdersScreen() {
       <View className="absolute top-[40%] left-[-80] w-72 h-72 rounded-full" style={{ backgroundColor: '#F97316', opacity: 0.03, transform: [{ scale: 1.5 }] }} />
 
       {/* Fondo sutil */}
-      <Image source={require('../../assets/images/menu/banner.jpg')} className="absolute inset-0 w-full h-full" resizeMode="cover" style={{ opacity: 0.12 }} />
+      <Image source={require('../../assets/images/menu/banner2.jpg')} className="absolute inset-0 w-full h-full" resizeMode="cover" style={{ opacity: 0.12 }} />
 
       {/* Título Imponente */}
       <View className="px-6 pt-6 pb-4 flex-row items-center justify-between">

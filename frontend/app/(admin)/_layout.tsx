@@ -61,10 +61,10 @@ export default function AdminLayout() {
         headerTitleAlign: 'center',
         headerShadowVisible: false,
         headerTitle: () => (
-          <View className="flex-row items-center bg-neutral-900/80 px-4 py-2 rounded-full border border-yellow-500/20">
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(23,23,23,0.8)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, borderWidth: 1, borderColor: 'rgba(234,179,8,0.2)' }}>
             <Image
               source={require('../../assets/images/menu/logo.png')}
-              className="w-4 h-4 mr-2"
+              style={{ width: 16, height: 16, marginRight: 8 }}
               resizeMode="contain"
             />
             <Text className="text-white font-black tracking-widest uppercase text-[10px]">Administración</Text>
@@ -73,7 +73,7 @@ export default function AdminLayout() {
         headerLeft: () => (
           <TouchableOpacity
             onPress={() => router.push('/(client)')}
-            className="w-9 h-9 items-center justify-center bg-neutral-900 rounded-full border border-neutral-800 ml-4"
+            style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171717', borderRadius: 9999, borderWidth: 1, borderColor: '#262626', marginLeft: 16 }}
           >
             <FontAwesome name="sign-out" size={14} color="#EAB308" style={{ marginLeft: 2 }} />
           </TouchableOpacity>
