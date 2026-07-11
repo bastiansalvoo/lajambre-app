@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { api } from '../../src/api/api';
+import { api, API_BASE_URL } from '../../src/api/api';
 import * as ImagePicker from 'expo-image-picker';
 
 const appendImageToFormData = async (formData: FormData, uri: string, fieldName = 'image') => {
@@ -190,7 +190,7 @@ export default function MenuManagerScreen() {
                 {/* Imagen */}
                 <View className="relative" style={{ width: 72, height: 72 }}>
                   <Image
-                    source={item.image ? { uri: item.image } : require('../../assets/images/menu/bbq.jpg')}
+                    source={item.image ? { uri: item.image.startsWith('/') ? API_BASE_URL + item.image : item.image } : require('../../assets/images/menu/bbq.jpg')}
                     style={{ width: 72, height: 72, borderRadius: 16, backgroundColor: '#1A1A1A' }}
                     resizeMode="cover"
                   />
@@ -277,7 +277,7 @@ export default function MenuManagerScreen() {
               <TouchableOpacity onPress={pickNewProductImage} className="w-full h-48 rounded-3xl border-2 border-dashed items-center justify-center mb-8 overflow-hidden relative" style={{ backgroundColor: '#111', borderColor: 'rgba(255,255,255,0.1)' }}>
                 {newImage ? (
                   <>
-                    <Image source={{ uri: newImage }} className="w-full h-full" resizeMode="cover" />
+                    <Image source={{ uri: newImage.startsWith('/') ? API_BASE_URL + newImage : newImage }} className="w-full h-full" resizeMode="cover" />
                     <View className="absolute inset-0 bg-black/20 items-center justify-center">
                       <View className="bg-black/50 w-12 h-12 rounded-full items-center justify-center">
                         <FontAwesome name="pencil" size={18} color="white" />
