@@ -7,8 +7,10 @@ const LOCAL_IP = '192.168.0.43';
 const LOCAL_PORT = '3000';
 
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ??
-  `http://${LOCAL_IP}:${LOCAL_PORT}`;
+  process.env.EXPO_PUBLIC_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname.includes('lajambre.cl')
+    ? 'https://api.lajambre.cl'
+    : `http://${LOCAL_IP}:${LOCAL_PORT}`);
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
