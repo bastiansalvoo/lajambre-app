@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, TouchableOpacity, Image, Alert, Modal, TextInput, ActivityIndicator, LayoutAnimation, UIManager, Platform, Animated, Easing, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, Modal, TextInput, ActivityIndicator, LayoutAnimation, UIManager, Platform, Animated, Easing, Dimensions } from 'react-native';
+import { showAlert } from '@/src/utils/alert';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
@@ -231,7 +232,7 @@ export default function CartScreen() {
   const handleOpenCheckout = async () => {
     const token = await SecureStore.getItemAsync('userToken');
     if (!token) {
-      Alert.alert('Identifícate', 'Inicia sesión para continuar con tu pedido.', [
+      showAlert('Identifícate', 'Inicia sesión para continuar con tu pedido.', [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Ir al Login', onPress: () => router.push('/(auth)/login') }
       ]);
@@ -273,7 +274,7 @@ export default function CartScreen() {
       // Pedido pagado 100% con puntos (sin pasar por pasarela)
       if (payResponse.data.is_free) {
         clearCart();
-        Alert.alert(
+        showAlert(
           '¡Pedido Gratis! 🎉',
           'Tu pedido fue pagado completamente con tus puntos de recompensa.',
           [{ text: 'Ver mis pedidos', onPress: () => router.replace('/(client)/orders') }]

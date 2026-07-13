@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, Animated, Easing, Dimensions, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, Animated, Easing, Dimensions } from 'react-native';
+import { showAlert } from '@/src/utils/alert';
+import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -402,7 +404,7 @@ export default function OrdersScreen() {
   };
 
   const handleCancel = async (order: any) => {
-    Alert.alert(
+    showAlert(
       '¿Cancelar Pedido?',
       '¿Estás seguro que deseas cancelar este pedido? Si usaste puntos, se te devolverán.',
       [
