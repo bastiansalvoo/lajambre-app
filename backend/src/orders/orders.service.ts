@@ -281,9 +281,14 @@ export class OrdersService {
       unit_price: item.priceAtPurchase,
     }));
 
-    // En modo sandbox usamos sandbox_init_point
-    const isSandbox = !this.configService.get<string>('MERCADOPAGO_ACCESS_TOKEN', '').startsWith('APP_USR-') ||
-      this.configService.get<string>('MERCADOPAGO_ENV', 'sandbox') === 'sandbox';
+    // En modo sandbox usamos sandbox_init_point.
+    // El prefijo del token (APP_USR- vs TEST-) NO es confiable para distinguir
+    // prueba de producción en Mercado Pago: algunas credenciales de prueba
+    // (con "usuario de prueba" asociado) también usan el prefijo APP_USR-.
+    // La única fuente de verdad es MERCADOPAGO_ENV, que el usuario cambia
+    // manualmente al activar credenciales reales de producción.
+    const isSandbox =
+      this.configService.get<string>('MERCADOPAGO_ENV', 'sandbox') !== 'production';
 
     // Obtener email del usuario (usar uno falso en sandbox para evitar bloqueos de Mercado Pago)
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -316,13 +321,17 @@ export class OrdersService {
       data: { buyOrder: externalReference, sessionId: preference.preferenceId },
     });
 
+    const checkoutUrl = isSandbox
+      ? preference.sandbox_init_point || preference.init_point
+      : preference.init_point;
+
     console.log('\n=============================================');
     console.log('🔗 URL DE PAGO (Cópiala en tu PC en Incógnito):');
-    console.log(preference.init_point);
+    console.log(checkoutUrl);
     console.log('=============================================\n');
 
     return {
-      checkout_url: preference.init_point,
+      checkout_url: checkoutUrl,
       preference_id: preference.preferenceId,
       is_free: false,
     };
