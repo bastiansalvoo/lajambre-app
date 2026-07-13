@@ -37,7 +37,13 @@ async function bootstrap() {
   });
 
   // Seguridad: Helmet (headers HTTP)
-  app.use(helmet());
+  // crossOriginResourcePolicy en 'cross-origin' porque /uploads se sirve desde
+  // api.lajambre.cl pero se consume desde lajambre.cl / admin.lajambre.cl (otro origen).
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   // CORS: permite cualquier origen en desarrollo, configurable en producción
   app.enableCors({
