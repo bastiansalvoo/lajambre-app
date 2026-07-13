@@ -11,6 +11,7 @@ export class ProductsService {
     const products = await this.prisma.product.findMany({
       where: isAdmin ? {} : { isAvailable: true }, // Admin ve todo, público solo disponibles
       include: { category: true },
+      orderBy: { name: 'asc' },
     });
     return products.map((p) => ({
       ...p,
