@@ -33,6 +33,11 @@ export class OrdersService {
   ) {}
 
   private isStoreOpen(): boolean {
+    // ⚠️ TEMPORAL: chequeo de horario desactivado para probar el flujo de pago
+    // en producción fuera de horario. Revertir esta línea apenas termine la prueba.
+    return true;
+
+    // eslint-disable-next-line no-unreachable
     const now = new Date();
     const chileTime = new Intl.DateTimeFormat('es-CL', {
       timeZone: 'America/Santiago',
