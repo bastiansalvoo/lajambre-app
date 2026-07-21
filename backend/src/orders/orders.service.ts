@@ -326,9 +326,10 @@ export class OrdersService {
       data: { buyOrder: externalReference, sessionId: preference.preferenceId },
     });
 
-    const checkoutUrl = isSandbox
-      ? preference.sandbox_init_point || preference.init_point
-      : preference.init_point;
+    // EXPERIMENTO: probando init_point en vez de sandbox_init_point con
+    // credenciales de prueba (tipo "usuario de prueba" / APP_USR-), porque
+    // sandbox_init_point se está trabando en el botón "Pagar" del checkout.
+    const checkoutUrl = preference.init_point;
 
     console.log('\n=============================================');
     console.log('🔗 URL DE PAGO (Cópiala en tu PC en Incógnito):');
