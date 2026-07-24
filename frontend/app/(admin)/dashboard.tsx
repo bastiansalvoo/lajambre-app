@@ -64,7 +64,9 @@ export default function DashboardScreen() {
       const today = new Date().toDateString();
       const todayOrders = Array.isArray(orders) ? orders.filter((o: any) => new Date(o.createdAt).toDateString() === today) : [];
       const pending = Array.isArray(orders) ? orders.filter((o: any) => o.status === 'PAGADO' || o.status === 'PREPARANDO') : [];
-      const revenue = Array.isArray(orders) ? orders.reduce((s: number, o: any) => s + o.total, 0) : 0;
+      const revenue = todayOrders
+        .filter((o: any) => o.status === 'PAGADO')
+        .reduce((s: number, o: any) => s + o.total, 0);
       const prodRes = await api.get('/products');
       const products = Array.isArray(prodRes.data) ? prodRes.data : [];
       setStats({ ordersToday: todayOrders.length, pending: pending.length, products: products.length, revenue });
