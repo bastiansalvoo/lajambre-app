@@ -76,7 +76,7 @@ export class OrdersService {
       const user = await tx.user.findUnique({ where: { id: userId } });
       if (!user) throw new NotFoundException('Usuario no encontrado');
 
-      let deliveryFee = 1800;
+      let deliveryFee = createOrderDto.isDelivery === false ? 0 : 1800;
       let pointsToUse = 0;
       let discount = 0;
 

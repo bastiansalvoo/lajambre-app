@@ -261,6 +261,7 @@ export default function CartScreen() {
         })),
         deliveryAddress: isDelivery ? orderAddress : 'Retiro en Local',
         contactPhone: orderPhone,
+        isDelivery,
         ...(selectedReward && { rewardType: selectedReward })
       };
       

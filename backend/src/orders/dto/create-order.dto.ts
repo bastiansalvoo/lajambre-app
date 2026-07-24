@@ -3,6 +3,7 @@ import {
   IsNumber,
   IsString,
   IsOptional,
+  IsBoolean,
   ValidateNested,
   IsIn,
 } from 'class-validator';
@@ -32,6 +33,10 @@ export class CreateOrderDto {
 
   @IsString()
   contactPhone!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isDelivery?: boolean;
 
   @IsOptional()
   @IsString()
