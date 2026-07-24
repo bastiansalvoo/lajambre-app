@@ -5,11 +5,15 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../../src/api/api';
+import { showAlert } from '../../src/utils/alert';
+import Toast from 'react-native-toast-message';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const [stats, setStats] = useState({ ordersToday: 0, pending: 0, products: 0, revenue: 0 });
   const [refreshing, setRefreshing] = useState(false);
+  const [storeOpen, setStoreOpen] = useState(true);
+  const [togglingStore, setTogglingStore] = useState(false);
 
   // --- Animación del brillo (Diamante) y Latido (Pulse) ---
   const shimmerValue = useRef(new Animated.Value(0)).current;
@@ -71,7 +75,44 @@ export default function DashboardScreen() {
       const products = Array.isArray(prodRes.data) ? prodRes.data : [];
       setStats({ ordersToday: todayOrders.length, pending: pending.length, products: products.length, revenue });
     } catch { }
+
+    try {
+      const storeRes = await api.get('/store/status');
+      setStoreOpen(storeRes.data?.isOpen ?? true);
+    } catch { }
   }, []);
+
+  const toggleStore = () => {
+    const closing = storeOpen;
+    showAlert(
+      closing ? '¿Cerrar el local?' : '¿Abrir el local?',
+      closing
+        ? 'Los clientes no van a poder hacer pedidos hasta que lo vuelvas a abrir.'
+        : 'Los clientes van a poder volver a hacer pedidos (dentro del horario habitual).',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: closing ? 'Sí, cerrar' : 'Sí, abrir',
+          style: closing ? 'destructive' : 'default',
+          onPress: async () => {
+            setTogglingStore(true);
+            try {
+              const res = await api.patch('/store/status', { isOpen: !closing });
+              setStoreOpen(res.data?.isOpen ?? !closing);
+              Toast.show({
+                type: 'success',
+                text1: closing ? 'Local cerrado' : 'Local abierto',
+              });
+            } catch {
+              Toast.show({ type: 'error', text1: 'No se pudo actualizar el estado del local.' });
+            } finally {
+              setTogglingStore(false);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   useFocusEffect(useCallback(() => { fetchStats(); }, [fetchStats]));
   const onRefresh = async () => { setRefreshing(true); await fetchStats(); setRefreshing(false); };
@@ -257,6 +298,29 @@ export default function DashboardScreen() {
             </View>
             <Text className="text-white font-black text-xs uppercase tracking-wider">Datos</Text>
             <Text className="text-neutral-500 text-[9px] font-bold mt-1 uppercase">Métricas</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Cierre manual del local */}
+        <View className="px-6 mt-2">
+          <TouchableOpacity
+            onPress={toggleStore}
+            disabled={togglingStore}
+            activeOpacity={0.85}
+            className="rounded-[24px] p-5 flex-row items-center justify-center border"
+            style={{
+              backgroundColor: storeOpen ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+              borderColor: storeOpen ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)',
+              opacity: togglingStore ? 0.6 : 1,
+            }}
+          >
+            <FontAwesome name={storeOpen ? 'lock' : 'unlock'} size={16} color={storeOpen ? '#EF4444' : '#22C55E'} />
+            <Text
+              className="font-black uppercase text-[13px] tracking-widest ml-3"
+              style={{ color: storeOpen ? '#EF4444' : '#22C55E' }}
+            >
+              {storeOpen ? 'Cerrar Local' : 'Abrir Local'}
+            </Text>
           </TouchableOpacity>
         </View>
 

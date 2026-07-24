@@ -13,6 +13,7 @@ import { OrdersModule } from './orders/orders.module';
 import { ExtrasModule } from './extras/extras.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { StoreModule } from './store/store.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     ExtrasModule,
     CategoriesModule,
     AnalyticsModule,
+    StoreModule,
   ],
   controllers: [AppController],
   providers: [

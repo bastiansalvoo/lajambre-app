@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import * as SecureStore from '@/src/utils/storage';
 import { api, API_BASE_URL } from '../../src/api/api';
 import { useCartStore, CartItem } from '../../src/store/cartStore';
+import { useStoreStatus } from '../../src/hooks/useStoreStatus';
 import * as WebBrowser from 'expo-web-browser';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -140,7 +141,8 @@ function EmptyCartState({ onGoToMenu }: { onGoToMenu: () => void }) {
 export default function CartScreen() {
   const router = useRouter();
   const { items, removeItem, updateQuantity, clearCart } = useCartStore();
-  
+  const { isOpen: storeOpen } = useStoreStatus();
+
   const [isDelivery, setIsDelivery] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -230,6 +232,10 @@ export default function CartScreen() {
   };
 
   const handleOpenCheckout = async () => {
+    if (!storeOpen) {
+      Toast.show({ type: 'error', text1: 'Local cerrado', text2: 'No estamos recibiendo pedidos en este momento.' });
+      return;
+    }
     const token = await SecureStore.getItemAsync('userToken');
     if (!token) {
       showAlert('Identifícate', 'Inicia sesión para continuar con tu pedido.', [

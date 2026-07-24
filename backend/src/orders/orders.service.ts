@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus, PointTransactionType, Prisma } from '@prisma/client';
 import { MercadoPagoService } from './mercadopago.service';
+import { StoreService } from '../store/store.service';
 
 export type OrderWithDetails = Prisma.OrderGetPayload<{
   include: {
@@ -30,14 +31,10 @@ export class OrdersService {
     private prisma: PrismaService,
     private mercadoPago: MercadoPagoService,
     private configService: ConfigService,
+    private storeService: StoreService,
   ) {}
 
-  private isStoreOpen(): boolean {
-    // ⚠️ TEMPORAL: chequeo de horario desactivado para probar el flujo de pago
-    // en producción fuera de horario. Revertir esta línea apenas termine la prueba.
-    return true;
-
-    // eslint-disable-next-line no-unreachable
+  private isWithinSchedule(): boolean {
     const now = new Date();
     const chileTime = new Intl.DateTimeFormat('es-CL', {
       timeZone: 'America/Santiago',
@@ -68,7 +65,10 @@ export class OrdersService {
   }
 
   async create(createOrderDto: CreateOrderDto, userId: number) {
-    if (!this.isStoreOpen()) {
+    if (!(await this.storeService.isManuallyOpen())) {
+      throw new ForbiddenException('Lajambre está cerrado por el momento. Vuelve a intentarlo más tarde.');
+    }
+    if (!this.isWithinSchedule()) {
       throw new ForbiddenException('Lajambre está cerrado. Horario: Martes a Domingo de 18:30 a 00:00.');
     }
 

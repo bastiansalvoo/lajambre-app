@@ -153,6 +153,15 @@ model PointTransaction {
   @@index([userId])
 }
 
+// --- CONTROL MANUAL DE APERTURA DE TIENDA ---
+// Fila unica (id=1). Permite al admin cerrar el local a mano, ademas del
+// horario automatico ya validado en OrdersService.isStoreOpen().
+model StoreStatus {
+  id        Int      @id @default(1)
+  isOpen    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+}
+
 // generator erd {
 //   provider = "prisma-erd-generator"
 //   output   = "./diagram.svg"

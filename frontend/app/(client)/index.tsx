@@ -9,7 +9,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, API_BASE_URL } from '../../src/api/api';
 import { useCartStore, ExtraItem } from '../../src/store/cartStore';
+import { useStoreStatus } from '../../src/hooks/useStoreStatus';
 import { FontAwesome } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 
 const BANNER_IMAGES = [
   require('../../assets/images/menu/banner.jpg'), 
@@ -38,6 +40,7 @@ export default function MenuScreen() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const addItem = useCartStore((state) => state.addItem);
+  const { isOpen: storeOpen } = useStoreStatus();
 
   // ── ANIMACIONES ──
   const scrollY = useSharedValue(0);
@@ -130,6 +133,10 @@ export default function MenuScreen() {
 
   // --- LÓGICA DEL MODAL ---
   const openExtrasModal = (product: any) => {
+    if (!storeOpen) {
+      Toast.show({ type: 'error', text1: 'Local cerrado', text2: 'No estamos recibiendo pedidos en este momento.' });
+      return;
+    }
     setSelectedProduct(product);
     setSelectedExtras([]); // Limpiamos selecciones anteriores
   };
@@ -192,7 +199,14 @@ export default function MenuScreen() {
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        
+        {!storeOpen && (
+          <View className="bg-red-600 py-2.5 px-4">
+            <Text className="text-white text-center font-black uppercase tracking-wider text-[12px]">
+              🔒 Local cerrado por el momento — no estamos recibiendo pedidos
+            </Text>
+          </View>
+        )}
+
         {/* Banner Carrusel */}
         <View 
             className="relative h-72 w-full border-y-2 border-yellow-500" 
