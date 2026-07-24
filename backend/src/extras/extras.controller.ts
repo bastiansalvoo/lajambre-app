@@ -26,8 +26,11 @@ export class ExtrasController {
     return this.extrasService.create(createExtraDto);
   }
 
+  // Lista completa (incluye agregados deshabilitados): solo para el panel de admin.
+  // El público usa /products/extras/all, que filtra por isAvailable.
   @Get()
-  // Generalmente el GET es público o para cualquier usuario logueado
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   findAll() {
     return this.extrasService.findAll();
   }

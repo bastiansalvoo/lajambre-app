@@ -41,7 +41,7 @@ export default function MenuManagerScreen() {
   const { data: products, isLoading: loadingProducts } = useQuery({
     queryKey: ['admin-products'],
     queryFn: async () => {
-      const response = await api.get('/products?admin=true');
+      const response = await api.get('/products/admin/all');
       return response.data;
     },
   });

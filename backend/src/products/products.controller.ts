@@ -11,7 +11,6 @@ import {
   ParseIntPipe,
   BadRequestException,
   UseGuards,
-  Query,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -99,11 +98,18 @@ export class ProductsController {
     return this.productsService.updateImage(id, file.filename);
   }
 
-  // 3. Ver todos (🌍 PÚBLICO o 🔒 ADMIN)
+  // 3. Ver todos (🌍 PÚBLICO): solo disponibles, sin importar query params del cliente
   @Get()
-  findAll(@Query('admin') isAdmin?: boolean) {
-    // Si viene ?admin=true, el servicio traerá todos (incluyendo los ocultos)
-    return this.productsService.findAll(isAdmin);
+  findAll() {
+    return this.productsService.findAll(false);
+  }
+
+  // 3b. Ver todos incluyendo ocultos (🔒 SOLO ADMIN)
+  @Get('admin/all')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('ADMIN')
+  findAllAdmin() {
+    return this.productsService.findAll(true);
   }
 
   // 🌍 PÚBLICO: Obtener extras disponibles

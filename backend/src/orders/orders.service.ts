@@ -463,7 +463,7 @@ export class OrdersService {
         skip,
         take: limit,
         include: {
-          user: true,
+          user: { select: { id: true, name: true, email: true, phone: true } },
           items: {
             include: {
               product: true,
@@ -483,7 +483,7 @@ export class OrdersService {
     const updatedOrder = await this.prisma.order.update({
       where: { id },
       data: { status },
-      include: { user: true },
+      include: { user: { select: { id: true, name: true, expoPushToken: true } } },
     });
 
     // Enviar notificación Push al cliente si tiene token
