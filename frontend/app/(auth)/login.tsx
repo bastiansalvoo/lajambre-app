@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ActivityIndicator, Modal,
   Image, ImageBackground, KeyboardAvoidingView, Platform, Dimensions,
-  Animated as RNAnimated,
+  ScrollView, Animated as RNAnimated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -96,7 +96,12 @@ export default function LoginScreen() {
 
       <SafeAreaView className="flex-1" edges={['left', 'right', 'bottom', 'top']} style={{ zIndex: 1 }}>
         <KeyboardAvoidingView behavior={Platform.OS === 'web' ? undefined : (Platform.OS === 'ios' ? 'padding' : 'height')} className="flex-1">
-          <View className="flex-1 justify-between px-6 pt-4 pb-8">
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 16, paddingBottom: 32 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* ── VOLVER ── */}
             <TouchableOpacity
               onPress={() => router.replace('/(client)')}
@@ -225,7 +230,7 @@ export default function LoginScreen() {
             <Text className="text-white/15 text-[10px] text-center mt-4">
               HAMBURGUESAS · DELIVERY · PUNTOS
             </Text>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
 

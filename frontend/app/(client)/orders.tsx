@@ -379,6 +379,29 @@ export default function OrdersScreen() {
     }
   };
 
+  const handleClearHistory = () => {
+    showAlert(
+      '¿Borrar historial?',
+      'Tus pedidos van a desaparecer de esta lista. Esto no cancela pedidos activos ni afecta tus puntos.',
+      [
+        { text: 'No, mantener', style: 'cancel' },
+        {
+          text: 'Sí, borrar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete('/orders/history');
+              setOrders([]);
+              Toast.show({ type: 'success', text1: 'Historial borrado' });
+            } catch {
+              Toast.show({ type: 'error', text1: 'No se pudo borrar el historial.' });
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleReorder = async (order: any) => {
     // Si el pedido está PENDIENTE: reintentar pago de la orden EXISTENTE (no crear una nueva)
     if (order.status === 'PENDIENTE') {
@@ -475,9 +498,18 @@ export default function OrdersScreen() {
             </Text>
           </View>
         </View>
+        {orders.length > 0 && (
+          <TouchableOpacity
+            onPress={handleClearHistory}
+            className="w-11 h-11 rounded-2xl items-center justify-center ml-3"
+            style={{ backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.15)' }}
+          >
+            <FontAwesome name="trash-o" size={16} color="#EF4444" />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           onPress={fetchOrders}
-          className="w-11 h-11 rounded-2xl items-center justify-center ml-4"
+          className="w-11 h-11 rounded-2xl items-center justify-center ml-3"
           style={{ backgroundColor: 'rgba(234,179,8,0.1)', borderWidth: 1, borderColor: 'rgba(234,179,8,0.15)' }}
         >
           <FontAwesome name="refresh" size={16} color="#EAB308" />

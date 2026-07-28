@@ -443,7 +443,7 @@ export class OrdersService {
 
   async findAllByUser(userId: number) {
     return this.prisma.order.findMany({
-      where: { userId },
+      where: { userId, hiddenByUser: false },
       include: {
         items: {
           include: {
@@ -454,6 +454,14 @@ export class OrdersService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async clearHistory(userId: number) {
+    await this.prisma.order.updateMany({
+      where: { userId },
+      data: { hiddenByUser: true },
+    });
+    return { success: true };
   }
 
   async findAllForAdmin(page = 1, limit = 50) {

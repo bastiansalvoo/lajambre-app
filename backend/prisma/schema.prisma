@@ -104,6 +104,10 @@ model Order {
   buyOrder  String? @unique
   sessionId String?
 
+  // Oculta el pedido de "Mis Pedidos" del cliente sin borrar el registro
+  // (el admin lo sigue viendo en metricas/historial completo).
+  hiddenByUser Boolean @default(false)
+
   items     OrderItem[]
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt

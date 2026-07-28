@@ -11,6 +11,7 @@ import {
   Query,
   ParseIntPipe,
   Patch,
+  Delete,
   Res,
   Header,
   HttpCode,
@@ -51,6 +52,13 @@ export class OrdersController {
     @Request() req: RequestWithUser,
   ) {
     return this.ordersService.startPayment(id, req.user.userId);
+  }
+
+  // Oculta todo el historial de pedidos del usuario (no los borra de la BD).
+  @Delete('history')
+  @UseGuards(AuthGuard('jwt'))
+  async clearHistory(@Request() req: RequestWithUser) {
+    return this.ordersService.clearHistory(req.user.userId);
   }
 
   @Patch(':id/cancel')
