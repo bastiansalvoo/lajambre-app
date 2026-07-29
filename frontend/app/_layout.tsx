@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { View, Text, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+import AppAlertModal from '../src/components/AppAlertModal';
 
 
 export { ErrorBoundary } from 'expo-router';
@@ -83,6 +84,7 @@ export default function RootLayout() {
         bottomOffset={height / 2 - 100}
         visibilityTime={3500}
       />
+      <AppAlertModal />
     </SafeAreaProvider>
   );
 }
