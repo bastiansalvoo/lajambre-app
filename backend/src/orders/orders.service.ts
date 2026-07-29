@@ -372,6 +372,14 @@ export class OrdersService {
 
     if (!order) throw new NotFoundException('Orden no encontrada');
 
+    // Idempotencia: si ya estaba PAGADO, no lo reprocesamos. Evita que
+    // un webhook reenviado duplique puntos, y evita que una segunda
+    // consulta a Mercado Pago (desde el feedback o un reintento de
+    // webhook) revierta a CANCELADO un pago que ya habia sido confirmado.
+    if (order.status === 'PAGADO') {
+      return { status: 'success', orderId: order.id };
+    }
+
     if (mpPayment.status === 'approved') {
       let pointsEarned = Math.floor(order.total / 100);
       const hoy = new Date();
