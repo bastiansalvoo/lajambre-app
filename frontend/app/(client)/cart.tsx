@@ -10,7 +10,7 @@ import * as SecureStore from '@/src/utils/storage';
 import { api, API_BASE_URL } from '../../src/api/api';
 import { useCartStore, CartItem } from '../../src/store/cartStore';
 import { useStoreStatus } from '../../src/hooks/useStoreStatus';
-import * as WebBrowser from 'expo-web-browser';
+import { openCheckoutWindow } from '../../src/utils/checkoutWindow';
 import { useFocusEffect } from '@react-navigation/native';
 
 // Habilitar animaciones de layout en Android
@@ -257,6 +257,11 @@ export default function CartScreen() {
       return;
     }
 
+    // Abrimos la pestaña ANTES de cualquier await: en Safari móvil,
+    // window.open() solo se permite si ocurre de forma sincrónica dentro
+    // del mismo tap del usuario, si no lo bloquea en silencio.
+    const checkoutWindow = openCheckoutWindow();
+
     setIsProcessing(true);
     try {
       const orderPayload = {
@@ -280,6 +285,7 @@ export default function CartScreen() {
 
       // Pedido pagado 100% con puntos (sin pasar por pasarela)
       if (payResponse.data.is_free) {
+        checkoutWindow.close(); // No hay a donde navegar, cerramos la pestaña en blanco
         clearCart();
         showAlert(
           '¡Pedido Gratis! 🎉',
@@ -292,12 +298,13 @@ export default function CartScreen() {
       // Abrir Checkout Pro de Mercado Pago en el navegador
       const checkoutUrl = payResponse.data.checkout_url;
       clearCart(); // Limpiamos el carrito justo antes de abrir MP
-      await WebBrowser.openBrowserAsync(checkoutUrl);
+      checkoutWindow.navigate(checkoutUrl);
 
       // Al volver a la app, llevar al usuario a sus pedidos
       router.replace('/(client)/orders');
 
     } catch (error: any) {
+      checkoutWindow.close();
       console.error('Error en el flujo de pago:', error);
       const msg = error.response?.data?.message || 'Error al procesar el pedido o conectar con Mercado Pago';
       Toast.show({ type: 'error', text1: 'Error', text2: Array.isArray(msg) ? msg[0] : msg });
@@ -519,20 +526,22 @@ export default function CartScreen() {
               <Text className="text-white font-black text-[13px]">${totalAmount.toLocaleString('es-CL')}</Text>
             </View>
 
-            {/* Fila Delivery */}
-            <View className="flex-row justify-between items-center mb-3">
-              <View className="flex-row items-center">
-                <Text className="text-neutral-500 text-[12px] font-bold uppercase tracking-wider">Delivery</Text>
-                {selectedReward === 'DELIVERY_GRATIS' && (
-                  <View className="ml-2 bg-yellow-500/10 px-2 py-0.5 rounded-full">
-                    <Text className="text-yellow-500 text-[8px] font-black uppercase">Gratis</Text>
-                  </View>
-                )}
+            {/* Fila Delivery (solo si el pedido es con delivery) */}
+            {isDelivery && (
+              <View className="flex-row justify-between items-center mb-3">
+                <View className="flex-row items-center">
+                  <Text className="text-neutral-500 text-[12px] font-bold uppercase tracking-wider">Delivery</Text>
+                  {selectedReward === 'DELIVERY_GRATIS' && (
+                    <View className="ml-2 bg-yellow-500/10 px-2 py-0.5 rounded-full">
+                      <Text className="text-yellow-500 text-[8px] font-black uppercase">Gratis</Text>
+                    </View>
+                  )}
+                </View>
+                <Text className={`font-black text-[13px] ${selectedReward === 'DELIVERY_GRATIS' ? 'text-yellow-500 line-through opacity-50' : 'text-white'}`}>
+                  ${deliveryCost.toLocaleString('es-CL')}
+                </Text>
               </View>
-              <Text className={`font-black text-[13px] ${selectedReward === 'DELIVERY_GRATIS' ? 'text-yellow-500 line-through opacity-50' : 'text-white'}`}>
-                ${(1800).toLocaleString('es-CL')}
-              </Text>
-            </View>
+            )}
 
             {/* Fila descuento premio */}
             {rewardDiscount > 0 && (

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, Animated, Easing, Dimensions } from 'react-native';
 import { showAlert } from '@/src/utils/alert';
-import * as WebBrowser from 'expo-web-browser';
+import { openCheckoutWindow } from '@/src/utils/checkoutWindow';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -405,12 +405,16 @@ export default function OrdersScreen() {
   const handleReorder = async (order: any) => {
     // Si el pedido está PENDIENTE: reintentar pago de la orden EXISTENTE (no crear una nueva)
     if (order.status === 'PENDIENTE') {
+      // Abrimos la pestaña ANTES del await: en Safari móvil el navegador
+      // solo permite window.open() de forma sincrónica dentro del tap.
+      const checkoutWindow = openCheckoutWindow();
       try {
         const payResponse = await api.post(`/orders/${order.id}/pay`);
         const checkoutUrl = payResponse.data.checkout_url;
-        await WebBrowser.openBrowserAsync(checkoutUrl);
+        checkoutWindow.navigate(checkoutUrl);
         fetchOrders(); // Recargar estado al volver
       } catch (error: any) {
+        checkoutWindow.close();
         const msg = error.response?.data?.message || 'No se pudo reintentar el pago.';
         Toast.show({ type: 'error', text1: 'Error', text2: Array.isArray(msg) ? msg[0] : msg });
       }
