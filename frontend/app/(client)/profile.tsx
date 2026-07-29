@@ -238,8 +238,20 @@ export default function ProfileScreen() {
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={{ flex: 1, height: 2, marginLeft: 16, borderRadius: 1 }}
           />
-          <TouchableOpacity onPress={handleLogout} style={{ padding: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, marginLeft: 16 }}>
-            <FontAwesome name="sign-out" size={16} color="#888" />
+          <TouchableOpacity
+            onPress={handleLogout}
+            style={{
+              flexDirection: 'row', alignItems: 'center',
+              paddingVertical: 8, paddingHorizontal: 12,
+              backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 12,
+              borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)',
+              marginLeft: 16,
+            }}
+          >
+            <FontAwesome name="sign-out" size={14} color="#EF4444" />
+            <Text style={{ color: '#EF4444', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5, marginLeft: 6 }}>
+              Cerrar Sesión
+            </Text>
           </TouchableOpacity>
         </View>
 

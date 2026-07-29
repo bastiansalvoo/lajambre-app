@@ -325,6 +325,17 @@ export default function CartScreen() {
   // ─────────────────────────────────────────────
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: '#060606' }} edges={['left', 'right']}>
+      {/* ── Fondo Global de la Pantalla ── */}
+      <View className="absolute inset-0 w-full h-full" style={{ zIndex: -1 }}>
+        <Image
+          source={require('../../assets/images/menu/banner.jpg')}
+          className="w-full h-full"
+          resizeMode="cover"
+          style={{ opacity: 0.6 }}
+        />
+        <View className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.65)' }} />
+      </View>
+
       <ScrollView className="flex-1 px-5 pt-6" showsVerticalScrollIndicator={false}>
         
         <View className="flex-row items-center mb-6">
