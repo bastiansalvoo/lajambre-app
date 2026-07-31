@@ -19,7 +19,16 @@ export const unstable_settings = {
   initialRouteName: 'index',
 };
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // El menu, categorias y extras casi no cambian: sin esto, cada vez que
+      // se vuelve a una pantalla (useFocusEffect/remount) se vuelve a pedir
+      // todo al servidor en vez de mostrar al instante lo que ya esta en cache.
+      staleTime: 60 * 1000,
+    },
+  },
+});
 
 SplashScreen.preventAutoHideAsync();
 
