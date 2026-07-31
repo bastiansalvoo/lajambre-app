@@ -18,6 +18,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { RegisterDto } from './dto/register.dto'; // <-- Importamos
 import { LoginDto } from './dto/login.dto'; // <-- Importamos
 import { PrismaService } from '../prisma.service';
+import { escapeHtml } from '../utils/html';
 
 @Controller('auth')
 @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
@@ -74,7 +75,7 @@ export class AuthController {
         <div style="background-color:rgba(255,255,255,0.05); padding:40px; border-radius:24px; text-align:center; border:1px solid rgba(255,255,255,0.1); max-width:400px; width:90%; box-shadow: 0 10px 40px rgba(234, 179, 8, 0.1);">
           <div style="font-size:70px; margin-bottom:20px;">🍔</div>
           <h1 style="color:#EAB308; margin-top:0; text-transform:uppercase; font-weight:900; letter-spacing:1px;">¡Cuenta Verificada!</h1>
-          <p style="color:#a3a3a3; line-height:1.6; font-size:16px;">Todo listo, <strong style="color:white;">${user.name}</strong>. Tu correo ha sido confirmado exitosamente.</p>
+          <p style="color:#a3a3a3; line-height:1.6; font-size:16px;">Todo listo, <strong style="color:white;">${escapeHtml(user.name)}</strong>. Tu correo ha sido confirmado exitosamente.</p>
           <p style="color:#777; font-size:14px; margin-top:30px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.05);">Ya puedes cerrar esta ventana y regresar a la aplicación de <strong style="color:#EAB308;">Lajambre</strong> para iniciar sesión.</p>
         </div>
       </body>
