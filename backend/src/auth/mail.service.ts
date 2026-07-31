@@ -1,22 +1,50 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
 import { escapeHtml } from '../utils/html';
 
+// Se manda por la API HTTP de Brevo (puerto 443) en vez de SMTP (puerto 587):
+// DigitalOcean (y proveedores similares) puede restringir el puerto de SMTP
+// saliente ante actividad sospechosa, dejando el envio de correos colgado
+// hasta el timeout. La API HTTP usa el mismo puerto que el resto del trafico
+// web, que nunca se bloquea.
 @Injectable()
 export class MailService {
-  private transporter: nodemailer.Transporter;
+  constructor(private configService: ConfigService) {}
 
-  constructor(private configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('SMTP_HOST', 'smtp.gmail.com'),
-      port: this.configService.get<number>('SMTP_PORT', 587),
-      secure: false,
-      auth: {
-        user: this.configService.getOrThrow<string>('SMTP_USER'),
-        pass: this.configService.getOrThrow<string>('SMTP_PASS'),
+  private async sendViaBrevoApi(params: {
+    toEmail: string;
+    toName: string;
+    subject: string;
+    html: string;
+  }) {
+    const apiKey = this.configService.getOrThrow<string>('BREVO_API_KEY');
+    const fromRaw = this.configService.get<string>(
+      'SMTP_FROM',
+      'lajambre.contacto@gmail.com',
+    );
+    const fromEmail = fromRaw.replace(/^.*<(.+)>$/, '$1').trim();
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
       },
+      body: JSON.stringify({
+        sender: { name: 'Lajambre', email: fromEmail },
+        to: [{ email: params.toEmail, name: params.toName }],
+        subject: params.subject,
+        htmlContent: params.html,
+      }),
     });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new InternalServerErrorException(
+        `Brevo API error (${response.status}): ${errorBody}`,
+      );
+    }
   }
 
   async sendVerificationEmail(
@@ -30,11 +58,7 @@ export class MailService {
     const baseUrl = apiBaseUrl || `http://${host}:${port}`;
     const url = `${baseUrl}/auth/verify?token=${token}`;
 
-    const mailOptions = {
-      from: this.configService.get<string>('SMTP_FROM', '"Lajambre" <lajambre.contacto@gmail.com>'),
-      to: userEmail,
-      subject: '🍔 Verifica tu cuenta en Lajambre',
-      html: `
+    const html = `
         <!DOCTYPE html>
         <html lang="es">
         <head>
@@ -103,9 +127,13 @@ export class MailService {
           </table>
         </body>
         </html>
-      `,
-    };
+      `;
 
-    await this.transporter.sendMail(mailOptions);
+    await this.sendViaBrevoApi({
+      toEmail: userEmail,
+      toName: userName,
+      subject: '🍔 Verifica tu cuenta en Lajambre',
+      html,
+    });
   }
 }
