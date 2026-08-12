@@ -11,6 +11,11 @@ services:
       POSTGRES_DB: ${DB_NAME:-lajambre}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # Solo accesible desde el propio VPS (127.0.0.1) — para conectar un
+    # cliente tipo DBeaver hay que entrar por tunel SSH, nunca expuesto
+    # directo a internet.
+    ports:
+      - "127.0.0.1:5432:5432"
     command: >
       postgres
       -c shared_buffers=256MB
