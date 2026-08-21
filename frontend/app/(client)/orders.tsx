@@ -357,25 +357,32 @@ export default function OrdersScreen() {
   const { clearCart, addItem } = useCartStore();
 
   useFocusEffect(
-    useCallback(() => { fetchOrders(); }, [])
+    useCallback(() => {
+      fetchOrders();
+      // Como las notificaciones push no funcionan en web, actualizamos
+      // solos mientras la pantalla esta abierta para que el cliente vea
+      // cambios de estado (Preparando, En camino, etc.) sin refrescar a mano.
+      const interval = setInterval(() => fetchOrders(true), 15000);
+      return () => clearInterval(interval);
+    }, [])
   );
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (silent = false) => {
     try {
       const token = await SecureStore.getItemAsync('userToken');
       if (!token) { router.replace('/(auth)/login'); return; }
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const response = await api.get('/orders');
       setOrders(response.data);
     } catch (error: any) {
       if (error.response?.status === 401) {
         await clearSession();
         router.replace('/(auth)/login');
-      } else {
+      } else if (!silent) {
         Toast.show({ type: 'error', text1: 'Error de conexión', text2: 'No se pudieron cargar tus pedidos. Verifica tu internet.' });
       }
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
@@ -512,7 +519,7 @@ export default function OrdersScreen() {
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          onPress={fetchOrders}
+          onPress={() => fetchOrders()}
           className="w-11 h-11 rounded-2xl items-center justify-center ml-3"
           style={{ backgroundColor: 'rgba(234,179,8,0.1)', borderWidth: 1, borderColor: 'rgba(234,179,8,0.15)' }}
         >
