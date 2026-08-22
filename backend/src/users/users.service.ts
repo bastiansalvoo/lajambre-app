@@ -59,19 +59,17 @@ export class UsersService {
       0,
     );
 
-    // 🏆 10 PREMIOS OFICIALES LAJAMBRE
-    const listaPremios = [
-      { id: 'QUESO_GRATIS', nombre: 'Queso Extra', pts: 50, icono: '🧀' },
-      { id: 'TOCINO_GRATIS', nombre: 'Tocino Extra', pts: 80, icono: '🥓' },
-      { id: 'BEBIDA_GRATIS', nombre: 'Bebida Gratis', pts: 150, icono: '🥤' },
-      { id: 'DELIVERY_GRATIS', nombre: 'Delivery Gratis', pts: 200, icono: '🚚' },
-      { id: 'PAPAS_GRATIS', nombre: 'Papas Rústicas', pts: 250, icono: '🍟' },
-      { id: 'CARNE_EXTRA', nombre: 'Carne Extra', pts: 350, icono: '🥩' },
-      { id: 'DOS_BEBIDAS', nombre: 'Dos Bebidas', pts: 350, icono: '🧊' },
-      { id: 'UPGRADE_BURGER', nombre: 'Upgrade Premium', pts: 450, icono: '⭐' },
-      { id: 'DOS_POR_UNO', nombre: 'Promo 2x1', pts: 600, icono: '🍔' },
-      { id: 'BURGER_GRATIS', nombre: 'Burger Gratis', pts: 800, icono: '🍔' },
-    ];
+    // 🏆 PREMIOS: ahora vienen de la tabla Reward (gestionables desde el panel de admin)
+    const premiosActivos = await this.prisma.reward.findMany({
+      where: { isActive: true },
+      orderBy: { pointsCost: 'asc' },
+    });
+    const listaPremios = premiosActivos.map((r) => ({
+      id: r.code,
+      nombre: r.name,
+      pts: r.pointsCost,
+      icono: r.icon,
+    }));
 
     // 🧠 GAMIFICACIÓN: Basado en PUNTOS HISTÓRICOS (Ya no bajan de nivel)
     let nivel = 'Bronce 🥉';

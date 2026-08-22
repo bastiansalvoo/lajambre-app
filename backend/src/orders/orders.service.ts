@@ -7,9 +7,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { OrderStatus, PointTransactionType, Prisma } from '@prisma/client';
+import { OrderStatus, PointTransactionType, Prisma, Reward } from '@prisma/client';
 import { MercadoPagoService } from './mercadopago.service';
 import { StoreService } from '../store/store.service';
+import { RewardsService } from '../rewards/rewards.service';
 
 export type OrderWithDetails = Prisma.OrderGetPayload<{
   include: {
@@ -32,6 +33,7 @@ export class OrdersService {
     private mercadoPago: MercadoPagoService,
     private configService: ConfigService,
     private storeService: StoreService,
+    private rewardsService: RewardsService,
   ) {}
 
   private isWithinSchedule(): boolean {
@@ -79,57 +81,27 @@ export class OrdersService {
       let deliveryFee = createOrderDto.isDelivery === false ? 0 : 1800;
       let pointsToUse = 0;
       let discount = 0;
+      let rewardRecord: Reward | null = null;
 
       if (createOrderDto.rewardType) {
-        const reward = createOrderDto.rewardType;
-        // UNIFICADO: Llaves en mayúsculas como el DTO
-        const rewardCosts: Record<string, number> = {
-          QUESO_GRATIS: 120,
-          BEBIDA_GRATIS: 150,
-          PAPAS_GRATIS: 180,
-          DELIVERY_GRATIS: 200,
-          TOCINO_GRATIS: 200,
-          CARNE_EXTRA: 250,
-          DOS_BEBIDAS: 250,
-          UPGRADE_BURGER: 300,
-          DOS_POR_UNO: 600,
-          BURGER_GRATIS: 800,
-        };
+        rewardRecord = await this.rewardsService.findByCode(createOrderDto.rewardType);
 
-        pointsToUse = rewardCosts[reward];
+        if (!rewardRecord || !rewardRecord.isActive) {
+          throw new BadRequestException('Premio no válido.');
+        }
 
-        if (!pointsToUse) throw new BadRequestException('Premio no válido.');
+        pointsToUse = rewardRecord.pointsCost;
 
-        // 👇 AGREGA ESTO SI NO ESTÁ:
         if (user.pointsBalance < pointsToUse) {
           throw new BadRequestException(
             `Puntos insuficientes. Tienes ${user.pointsBalance} y necesitas ${pointsToUse} pts.`,
           );
         }
 
-        // ... (validación de puntos igual)
-
-        switch (reward) {
-          case 'DELIVERY_GRATIS':
-            deliveryFee = 0;
-            break;
-          case 'QUESO_GRATIS':
-          case 'TOCINO_GRATIS':
-          case 'BEBIDA_GRATIS':
-            discount = 1200;
-            break;
-          case 'PAPAS_GRATIS':
-            discount = 2500;
-            break; // Valor papas rústicas
-          case 'CARNE_EXTRA':
-          case 'DOS_BEBIDAS':
-          case 'UPGRADE_BURGER':
-            discount = 2000;
-            break;
-          case 'DOS_POR_UNO':
-          case 'BURGER_GRATIS':
-            discount = 8490;
-            break; // Valor promedio
+        if (rewardRecord.freeDelivery) {
+          deliveryFee = 0;
+        } else {
+          discount = rewardRecord.discountAmount;
         }
       }
 
@@ -203,16 +175,11 @@ export class OrdersService {
         subTotalItems += itemTotal;
       }
 
-      // 3. VALIDACIÓN DE REGLA ESPECIAL (DOS_POR_UNO y UPGRADE_BURGER)
-      if (
-        createOrderDto.rewardType === 'DOS_POR_UNO' || // <--- CAMBIADO A MAYÚSCULAS
-        createOrderDto.rewardType === 'UPGRADE_BURGER' // <--- CAMBIADO A MAYÚSCULAS
-      ) {
-        if (!hasBurger) {
-          throw new BadRequestException(
-            'Este premio requiere incluir al menos una hamburguesa.',
-          );
-        }
+      // 3. VALIDACIÓN DE REGLA ESPECIAL (premios que requieren hamburguesa)
+      if (rewardRecord?.requiresBurger && !hasBurger) {
+        throw new BadRequestException(
+          'Este premio requiere incluir al menos una hamburguesa.',
+        );
       }
 
       // 4. CÁLCULO FINAL Y DESCUENTO DE PUNTOS

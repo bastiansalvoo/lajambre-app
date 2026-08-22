@@ -301,6 +301,21 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Premios de Lajambre Club */}
+        <View className="px-6 mb-4">
+          <TouchableOpacity onPress={() => router.push('/(admin)/rewards-manager')} activeOpacity={0.85}
+            className="rounded-[24px] p-5 flex-row items-center border" style={{ backgroundColor: 'rgba(168, 85, 247, 0.08)', borderColor: 'rgba(168, 85, 247, 0.2)' }}>
+            <View className="w-12 h-12 rounded-2xl items-center justify-center mr-4" style={{ backgroundColor: 'rgba(168, 85, 247, 0.15)' }}>
+              <FontAwesome name="trophy" size={20} color="#A855F7" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-white font-black text-[15px] tracking-tight mb-0.5">Premios</Text>
+              <Text className="text-neutral-500 text-[10px] font-bold uppercase tracking-widest">Lajambre Club</Text>
+            </View>
+            <FontAwesome name="chevron-right" size={14} color="#737373" />
+          </TouchableOpacity>
+        </View>
+
         {/* Cierre manual del local */}
         <View className="px-6 mt-2">
           <TouchableOpacity

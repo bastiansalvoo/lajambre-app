@@ -4,9 +4,10 @@ import { OrdersController } from './orders.controller';
 import { PrismaService } from '../prisma.service';
 import { MercadoPagoService } from './mercadopago.service';
 import { StoreModule } from '../store/store.module';
+import { RewardsModule } from '../rewards/rewards.module';
 
 @Module({
-  imports: [StoreModule],
+  imports: [StoreModule, RewardsModule],
   controllers: [OrdersController],
   providers: [OrdersService, MercadoPagoService, PrismaService],
 })

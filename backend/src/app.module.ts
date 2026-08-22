@@ -14,6 +14,7 @@ import { ExtrasModule } from './extras/extras.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { StoreModule } from './store/store.module';
+import { RewardsModule } from './rewards/rewards.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { StoreModule } from './store/store.module';
     CategoriesModule,
     AnalyticsModule,
     StoreModule,
+    RewardsModule,
   ],
   controllers: [AppController],
   providers: [

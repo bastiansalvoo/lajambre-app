@@ -12,6 +12,7 @@ import { useCartStore, CartItem } from '../../src/store/cartStore';
 import { useStoreStatus } from '../../src/hooks/useStoreStatus';
 import { openCheckoutWindow } from '../../src/utils/checkoutWindow';
 import { useFocusEffect } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 
 // Habilitar animaciones de layout en Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -186,38 +187,44 @@ export default function CartScreen() {
     return item.price + extrasTotal;
   };
 
+  // Premios: vienen de la API (tabla Reward), gestionables desde el panel de admin.
+  const { data: rewardsData } = useQuery({
+    queryKey: ['rewards'],
+    queryFn: async () => {
+      const response = await api.get('/rewards');
+      return response.data as {
+        code: string;
+        name: string;
+        icon: string;
+        pointsCost: number;
+        discountAmount: number;
+        freeDelivery: boolean;
+        requiresBurger: boolean;
+      }[];
+    },
+  });
+  const REWARD_OPTIONS = rewardsData ?? [];
+  const selectedRewardData = REWARD_OPTIONS.find((r) => r.code === selectedReward);
+
   // --- CÁLCULO DINÁMICO DE DESCUENTOS ---
   let totalAmount = items.reduce((sum, item) => sum + (getItemTotalPrice(item) * item.quantity), 0);
   let deliveryCost = isDelivery ? 1800 : 0;
   let rewardDiscount = 0;
   const hasBurger = items.some(item => item.price >= 5000);
 
-  if (selectedReward === 'DELIVERY_GRATIS') {
-    deliveryCost = 0;
-  } else if (selectedReward === 'BEBIDA_GRATIS') {
-    rewardDiscount = 1200;
-  } else if (selectedReward === 'BURGER_GRATIS' && hasBurger) {
-    rewardDiscount = 8490;
-  } else if (selectedReward === 'BURGER_GRATIS' && !hasBurger) {
-    setSelectedReward(null);
-    Toast.show({ type: 'error', text1: 'Aviso', text2: 'Debes tener al menos una hamburguesa en el carrito para usar este premio.' });
+  if (selectedRewardData) {
+    if (selectedRewardData.requiresBurger && !hasBurger) {
+      setSelectedReward(null);
+      Toast.show({ type: 'error', text1: 'Aviso', text2: 'Debes tener al menos una hamburguesa en el carrito para usar este premio.' });
+    } else if (selectedRewardData.freeDelivery) {
+      deliveryCost = 0;
+    } else {
+      rewardDiscount = selectedRewardData.discountAmount;
+    }
   }
 
   let finalTotal = totalAmount + deliveryCost - rewardDiscount;
   if (finalTotal < 0) finalTotal = 0;
-
-  const REWARD_OPTIONS = [
-    { id: 'QUESO_GRATIS', name: 'Queso Extra', points: 50, emoji: '🧀', desc: '50 pts' },
-    { id: 'TOCINO_GRATIS', name: 'Tocino Extra', points: 80, emoji: '🥓', desc: '80 pts' },
-    { id: 'BEBIDA_GRATIS', name: 'Bebida Gratis', points: 150, emoji: '🥤', desc: '150 pts' },
-    { id: 'DELIVERY_GRATIS', name: 'Delivery Gratis', points: 200, emoji: '🛵', desc: '200 pts' },
-    { id: 'PAPAS_GRATIS', name: 'Papas Rústicas', points: 250, emoji: '🍟', desc: '250 pts' },
-    { id: 'CARNE_EXTRA', name: 'Doble Carne', points: 350, emoji: '🥩', desc: '350 pts' },
-    { id: 'DOS_BEBIDAS', name: '2 Bebidas Gratis', points: 350, emoji: '🧊', desc: '350 pts' },
-    { id: 'UPGRADE_BURGER', name: 'Upgrade Premium', points: 450, emoji: '⭐', desc: '450 pts' },
-    { id: 'DOS_POR_UNO', name: 'Promo 2x1', points: 600, emoji: '🍔', desc: '600 pts' },
-    { id: 'BURGER_GRATIS', name: 'Burger Gratis', points: 800, emoji: '🍔', desc: '800 pts' }
-  ];
 
   const handleRewardSelection = (rewardId: string, requiredPoints: number) => {
     if (userPoints < requiredPoints) {
@@ -443,7 +450,7 @@ export default function CartScreen() {
                 <Text className="text-white font-black uppercase tracking-widest text-[15px] mb-0.5">Lajambre Club</Text>
                 {selectedReward ? (
                   <Text className="text-yellow-500 text-[10px] font-black uppercase tracking-widest">
-                    Premio Activo: {REWARD_OPTIONS.find(r => r.id === selectedReward)?.name}
+                    Premio Activo: {selectedRewardData?.name}
                   </Text>
                 ) : (
                   <Text className="text-neutral-400 text-[10px] font-bold uppercase tracking-widest">
@@ -461,14 +468,14 @@ export default function CartScreen() {
           {clubExpanded && (
             <View className="px-5 pb-6 pt-2 border-t border-white/5 z-10">
               <View style={{ gap: 12, marginTop: 8 }}>
-                {REWARD_OPTIONS.filter(r => r.points <= userPoints).length > 0 ? (
-                  REWARD_OPTIONS.filter(r => r.points <= userPoints).map((reward) => {
-                    const isSelected = selectedReward === reward.id;
+                {REWARD_OPTIONS.filter(r => r.pointsCost <= userPoints).length > 0 ? (
+                  REWARD_OPTIONS.filter(r => r.pointsCost <= userPoints).map((reward) => {
+                    const isSelected = selectedReward === reward.code;
 
                     return (
                       <TouchableOpacity
-                        key={reward.id}
-                        onPress={() => handleRewardSelection(reward.id, reward.points)}
+                        key={reward.code}
+                        onPress={() => handleRewardSelection(reward.code, reward.pointsCost)}
                         activeOpacity={0.8}
                         className="flex-row items-center p-4 rounded-2xl"
                         style={{ 
@@ -482,7 +489,7 @@ export default function CartScreen() {
                           className="w-12 h-12 rounded-full items-center justify-center mr-4"
                           style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
                         >
-                          <Text className="text-[24px]">{reward.emoji}</Text>
+                          <Text className="text-[24px]">{reward.icon}</Text>
                         </View>
 
                         {/* Info principal */}
@@ -498,7 +505,7 @@ export default function CartScreen() {
                         {/* Puntos (Ticket Stub) */}
                         <View className="items-center justify-center min-w-[45px]">
                           <Text className={`font-black text-[16px] ${isSelected ? 'text-yellow-500' : 'text-white'}`}>
-                            {reward.points}
+                            {reward.pointsCost}
                           </Text>
                           <Text className={`font-black text-[9px] uppercase tracking-widest mt-0.5 ${isSelected ? 'text-yellow-500/70' : 'text-neutral-600'}`}>
                             Pts
@@ -542,13 +549,13 @@ export default function CartScreen() {
               <View className="flex-row justify-between items-center mb-3">
                 <View className="flex-row items-center">
                   <Text className="text-neutral-500 text-[12px] font-bold uppercase tracking-wider">Delivery</Text>
-                  {selectedReward === 'DELIVERY_GRATIS' && (
+                  {selectedRewardData?.freeDelivery && (
                     <View className="ml-2 bg-yellow-500/10 px-2 py-0.5 rounded-full">
                       <Text className="text-yellow-500 text-[8px] font-black uppercase">Gratis</Text>
                     </View>
                   )}
                 </View>
-                <Text className={`font-black text-[13px] ${selectedReward === 'DELIVERY_GRATIS' ? 'text-yellow-500 line-through opacity-50' : 'text-white'}`}>
+                <Text className={`font-black text-[13px] ${selectedRewardData?.freeDelivery ? 'text-yellow-500 line-through opacity-50' : 'text-white'}`}>
                   ${deliveryCost.toLocaleString('es-CL')}
                 </Text>
               </View>
