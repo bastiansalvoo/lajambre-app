@@ -30,7 +30,12 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "asyncRoutes": "production"
+        }
+      ],
       "expo-secure-store",
       "expo-web-browser"
     ],
