@@ -14,18 +14,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWindowDimensions } from 'react-native';
 
 // Mapeo de nombres de premios a íconos FontAwesome (aproximación)
-const getRewardIcon = (name: string) => {
+const getRewardImage = (name: string) => {
   const n = name.toLowerCase();
-  if (n.includes('queso')) return { name: 'certificate', color: '#FACC15' };
-  if (n.includes('tocino')) return { name: 'fire', color: '#EF4444' };
-  if (n.includes('bebida')) return { name: 'glass', color: '#60A5FA' };
-  if (n.includes('delivery') || n.includes('envío')) return { name: 'motorcycle', color: '#34D399' };
-  if (n.includes('papas') || n.includes('fries')) return { name: 'archive', color: '#F59E0B' };
-  if (n.includes('carne')) return { name: 'plus-circle', color: '#DC2626' };
-  if (n.includes('premium') || n.includes('upgrade')) return { name: 'star', color: '#EAB308' };
-  if (n.includes('promo') || n.includes('2x1')) return { name: 'copy', color: '#A855F7' };
-  if (n.includes('burger') || n.includes('hamburguesa')) return { name: 'cutlery', color: '#F97316' };
-  return { name: 'gift', color: '#EC4899' };
+  if (n.includes('queso')) return require('../../assets/images/rewards/queso_extra.jpg');
+  if (n.includes('tocino')) return require('../../assets/images/rewards/tocino_extra.jpg');
+  if (n.includes('bebida') && (n.includes('2') || n.includes('dos'))) return require('../../assets/images/rewards/dos_bebidas.jpg');
+  if (n.includes('bebida')) return require('../../assets/images/rewards/bebida_gratis.jpg');
+  if (n.includes('delivery') || n.includes('envío')) return require('../../assets/images/rewards/delivery_gratis.jpg');
+  if (n.includes('papas') || n.includes('fries')) return require('../../assets/images/rewards/papas_rusticas.jpg');
+  if (n.includes('carne')) return require('../../assets/images/rewards/carne_extra.jpg');
+  if (n.includes('premium') || n.includes('upgrade')) return require('../../assets/images/rewards/upgrade_burger.jpg');
+  if (n.includes('promo') || n.includes('2x1') || n.includes('uno')) return require('../../assets/images/rewards/dos_por_uno.jpg');
+  return require('../../assets/images/rewards/burger_gratis.jpg');
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -301,17 +301,17 @@ export default function ProfileScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
             {rewardsData?.recompensas?.map((premio: any, idx: number) => {
               const unlocked = premio.alcanzado;
-              const iconData = getRewardIcon(premio.nombre);
+              const imgSource = getRewardImage(premio.nombre);
               
               return (
                 <View key={premio.id} style={{
                   width: 130, marginRight: 16, borderRadius: 20, overflow: 'hidden',
                   backgroundColor: unlocked ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.3)',
-                  borderWidth: 1, borderColor: unlocked ? iconData.color + '40' : 'rgba(255,255,255,0.03)',
+                  borderWidth: 1, borderColor: unlocked ? tierColor + '40' : 'rgba(255,255,255,0.03)',
                 }}>
                   {unlocked && (
                     <LinearGradient
-                      colors={[iconData.color + '15', 'transparent']}
+                      colors={[tierColor + '15', 'transparent']}
                       start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
                       style={{ position: 'absolute', width: '100%', height: '100%' }}
                     />
@@ -319,14 +319,14 @@ export default function ProfileScreen() {
                   
                   <View style={{ padding: 16, alignItems: 'center' }}>
                     <View style={{
-                      width: 48, height: 48, borderRadius: 24, marginBottom: 12,
-                      backgroundColor: unlocked ? iconData.color + '20' : iconData.color + '08',
-                      alignItems: 'center', justifyContent: 'center',
+                      width: 56, height: 56, borderRadius: 28, marginBottom: 12,
+                      alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                      borderWidth: 1, borderColor: unlocked ? tierColor + '80' : 'rgba(255,255,255,0.1)'
                     }}>
-                      <FontAwesome
-                        name={iconData.name as any}
-                        size={20}
-                        color={unlocked ? iconData.color : iconData.color + '80'}
+                      <Image 
+                        source={imgSource} 
+                        style={{ width: '100%', height: '100%', opacity: unlocked ? 1 : 0.4 }} 
+                        resizeMode="cover" 
                       />
                     </View>
 

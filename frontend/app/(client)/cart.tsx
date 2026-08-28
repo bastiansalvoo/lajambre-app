@@ -157,6 +157,21 @@ export default function CartScreen() {
   // --- LAJAMBRE CLUB COLAPSABLE ---
   const [clubExpanded, setClubExpanded] = useState(false);
 
+  const getRewardImage = (code: string) => {
+    const c = code.toUpperCase();
+    if (c === 'QUESO_GRATIS') return require('../../assets/images/rewards/queso_extra.jpg');
+    if (c === 'TOCINO_GRATIS') return require('../../assets/images/rewards/tocino_extra.jpg');
+    if (c === 'BEBIDA_GRATIS') return require('../../assets/images/rewards/bebida_gratis.jpg');
+    if (c === 'DELIVERY_GRATIS') return require('../../assets/images/rewards/delivery_gratis.jpg');
+    if (c === 'PAPAS_GRATIS') return require('../../assets/images/rewards/papas_rusticas.jpg');
+    if (c === 'CARNE_EXTRA') return require('../../assets/images/rewards/carne_extra.jpg');
+    if (c === 'DOS_BEBIDAS') return require('../../assets/images/rewards/dos_bebidas.jpg');
+    if (c === 'UPGRADE_BURGER') return require('../../assets/images/rewards/upgrade_burger.jpg');
+    if (c === 'DOS_POR_UNO') return require('../../assets/images/rewards/dos_por_uno.jpg');
+    if (c === 'BURGER_GRATIS') return require('../../assets/images/rewards/burger_gratis.jpg');
+    return require('../../assets/images/rewards/burger_gratis.jpg');
+  };
+
   const toggleClub = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setClubExpanded(prev => !prev);
@@ -484,12 +499,16 @@ export default function CartScreen() {
                           borderColor: isSelected ? '#EAB308' : 'rgba(255,255,255,0.08)'
                         }}
                       >
-                        {/* Círculo del Emoji */}
+                        {/* Círculo de la imagen */}
                         <View 
-                          className="w-12 h-12 rounded-full items-center justify-center mr-4"
-                          style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
+                          className="w-14 h-14 rounded-full items-center justify-center mr-4 overflow-hidden border"
+                          style={{ borderColor: isSelected ? '#EAB308' : 'rgba(255,255,255,0.1)' }}
                         >
-                          <Text className="text-[24px]">{reward.icon}</Text>
+                          <Image 
+                            source={getRewardImage(reward.code)} 
+                            style={{ width: '100%', height: '100%', opacity: isSelected ? 1 : 0.6 }} 
+                            resizeMode="cover" 
+                          />
                         </View>
 
                         {/* Info principal */}
