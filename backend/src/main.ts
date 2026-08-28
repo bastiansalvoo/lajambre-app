@@ -49,6 +49,10 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.CORS_ORIGIN || '*',
     credentials: true,
+    // Sin maxAge, el navegador no puede cachear el preflight (OPTIONS) y
+    // repite esa ida y vuelta extra en CADA llamada autenticada (~300ms
+    // perdidos por request). 24h es el tope que Chrome/Firefox respetan.
+    maxAge: 86400,
   });
 
   // Filtro global: errores estandarizados
